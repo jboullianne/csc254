@@ -1,0 +1,188 @@
+['DW_TAG_formal_parameter', 'Parser', 'unistd.c', 337, 'END LINE', 0, 0, '00000c83']
+['DW_TAG_formal_parameter', 'ReturnValue', 'unistd.c', 337, 'END LINE', 0, 0, '00000ad6']
+['DW_TAG_formal_parameter', 'Param', 'unistd.c', 337, 'END LINE', 0, 0, '00000c25']
+['DW_TAG_formal_parameter', 'NumArgs', 'unistd.c', 337, 'END LINE', 0, 0, '00000066']
+['DW_TAG_subprogram', 'UnistdTcsetpgrp', 'unistd.c', 342, 345, '00419589', '81', 0]
+['DW_TAG_formal_parameter', 'Parser', 'unistd.c', 342, 'END LINE', 0, 0, '00000c83']
+['DW_TAG_formal_parameter', 'ReturnValue', 'unistd.c', 342, 'END LINE', 0, 0, '00000ad6']
+['DW_TAG_formal_parameter', 'Param', 'unistd.c', 342, 'END LINE', 0, 0, '00000c25']
+['DW_TAG_formal_parameter', 'NumArgs', 'unistd.c', 342, 'END LINE', 0, 0, '00000066']
+['DW_TAG_subprogram', 'UnistdTruncate', 'unistd.c', 347, 350, '004195da', '87', 0]
+['DW_TAG_formal_parameter', 'Parser', 'unistd.c', 347, 'END LINE', 0, 0, '00000c83']
+['DW_TAG_formal_parameter', 'ReturnValue', 'unistd.c', 347, 'END LINE', 0, 0, '00000ad6']
+['DW_TAG_formal_parameter', 'Param', 'unistd.c', 347, 'END LINE', 0, 0, '00000c25']
+['DW_TAG_formal_parameter', 'NumArgs', 'unistd.c', 347, 'END LINE', 0, 0, '00000066']
+['DW_TAG_subprogram', 'UnistdTtyname', 'unistd.c', 352, 355, '00419631', '63', 0]
+['DW_TAG_formal_parameter', 'Parser', 'unistd.c', 352, 'END LINE', 0, 0, '00000c83']
+['DW_TAG_formal_parameter', 'ReturnValue', 'unistd.c', 352, 'END LINE', 0, 0, '00000ad6']
+['DW_TAG_formal_parameter', 'Param', 'unistd.c', 352, 'END LINE', 0, 0, '00000c25']
+['DW_TAG_formal_parameter', 'NumArgs', 'unistd.c', 352, 'END LINE', 0, 0, '00000066']
+['DW_TAG_subprogram', 'UnistdTtyname_r', 'unistd.c', 357, 360, '00419670', '103', 0]
+['DW_TAG_formal_parameter', 'Parser', 'unistd.c', 357, 'END LINE', 0, 0, '00000c83']
+['DW_TAG_formal_parameter', 'ReturnValue', 'unistd.c', 357, 'END LINE', 0, 0, '00000ad6']
+['DW_TAG_formal_parameter', 'Param', 'unistd.c', 357, 'END LINE', 0, 0, '00000c25']
+['DW_TAG_formal_parameter', 'NumArgs', 'unistd.c', 357, 'END LINE', 0, 0, '00000066']
+['DW_TAG_subprogram', 'UnistdUalarm', 'unistd.c', 362, 365, '004196d7', '83', 0]
+['DW_TAG_formal_parameter', 'Parser', 'unistd.c', 362, 'END LINE', 0, 0, '00000c83']
+['DW_TAG_formal_parameter', 'ReturnValue', 'unistd.c', 362, 'END LINE', 0, 0, '00000ad6']
+['DW_TAG_formal_parameter', 'Param', 'unistd.c', 362, 'END LINE', 0, 0, '00000c25']
+['DW_TAG_formal_parameter', 'NumArgs', 'unistd.c', 362, 'END LINE', 0, 0, '00000066']
+['DW_TAG_subprogram', 'UnistdUnlink', 'unistd.c', 367, 370, '0041972a', '64', 0]
+['DW_TAG_formal_parameter', 'Parser', 'unistd.c', 367, 'END LINE', 0, 0, '00000c83']
+['DW_TAG_formal_parameter', 'ReturnValue', 'unistd.c', 367, 'END LINE', 0, 0, '00000ad6']
+['DW_TAG_formal_parameter', 'Param', 'unistd.c', 367, 'END LINE', 0, 0, '00000c25']
+['DW_TAG_formal_parameter', 'NumArgs', 'unistd.c', 367, 'END LINE', 0, 0, '00000066']
+['DW_TAG_subprogram', 'UnistdUsleep', 'unistd.c', 372, 375, '0041976a', '62', 0]
+['DW_TAG_formal_parameter', 'Parser', 'unistd.c', 372, 'END LINE', 0, 0, '00000c83']
+['DW_TAG_formal_parameter', 'ReturnValue', 'unistd.c', 372, 'END LINE', 0, 0, '00000ad6']
+['DW_TAG_formal_parameter', 'Param', 'unistd.c', 372, 'END LINE', 0, 0, '00000c25']
+['DW_TAG_formal_parameter', 'NumArgs', 'unistd.c', 372, 'END LINE', 0, 0, '00000066']
+['DW_TAG_subprogram', 'UnistdVfork', 'unistd.c', 377, 380, '004197a8', '49', 0]
+['DW_TAG_formal_parameter', 'Parser', 'unistd.c', 377, 'END LINE', 0, 0, '00000c83']
+['DW_TAG_formal_parameter', 'ReturnValue', 'unistd.c', 377, 'END LINE', 0, 0, '00000ad6']
+['DW_TAG_formal_parameter', 'Param', 'unistd.c', 377, 'END LINE', 0, 0, '00000c25']
+['DW_TAG_formal_parameter', 'NumArgs', 'unistd.c', 377, 'END LINE', 0, 0, '00000066']
+['DW_TAG_subprogram', 'UnistdWrite', 'unistd.c', 382, 385, '004197d9', '103', 0]
+['DW_TAG_formal_parameter', 'Parser', 'unistd.c', 382, 'END LINE', 0, 0, '00000c83']
+['DW_TAG_formal_parameter', 'ReturnValue', 'unistd.c', 382, 'END LINE', 0, 0, '00000ad6']
+['DW_TAG_formal_parameter', 'Param', 'unistd.c', 382, 'END LINE', 0, 0, '00000c25']
+['DW_TAG_formal_parameter', 'NumArgs', 'unistd.c', 382, 'END LINE', 0, 0, '00000066']
+['DW_TAG_subprogram', 'UnistdSetupFunc', 'unistd.c', 491, 502, '00419840', '294', 0]
+['DW_TAG_formal_parameter', 'pc', 'unistd.c', 491, 'END LINE', 0, 0, '00000785']
+['DW_TAG_variable', 'ZeroValue', 'unistd.c', 10, 'END LINE', 0, 0, '00000066']
+['DW_TAG_variable', 'optarg', 'getopt.h', 57, 'END LINE', 0, 0, '00000093']
+['DW_TAG_variable', 'optind', 'getopt.h', 71, 'END LINE', 0, 0, '00000066']
+['DW_TAG_variable', 'opterr', 'getopt.h', 76, 'END LINE', 0, 0, '00000066']
+['DW_TAG_variable', 'optopt', 'getopt.h', 80, 'END LINE', 0, 0, '00000066']
+['DW_TAG_array_type', 'NONE', 'NONE', 0, 'END LINE', 0, 0, '00000099']
+['DW_TAG_subrange_type', 'NONE', 'NONE', 0, 'END LINE', 0, 0, '0000008a']
+['DW_TAG_variable', 'UnistdDefs', 'unistd.c', 389, 'END LINE', 0, 0, '000024e5']
+['DW_TAG_const_type', 'NONE', 'NONE', 0, 'END LINE', 0, 0, '000024bf']
+['DW_TAG_array_type', 'NONE', 'NONE', 0, 'END LINE', 0, 0, '00000c41']
+['DW_TAG_subrange_type', 'NONE', 'NONE', 0, 'END LINE', 0, 0, '0000008a']
+['DW_TAG_variable', 'UnistdFunctions', 'unistd.c', 401, 'END LINE', 0, 0, '000024ea']
+['DW_TAG_compile_unit', 'picoc.c', 'NONE', 0, 'END LINE', '00403bc6', '564', 0]
+['DW_TAG_compile_unit', 'table.c', 'NONE', 0, 'END LINE', '00403dfa', '1636', 0]
+['DW_TAG_compile_unit', 'lex.c', 'NONE', 0, 'END LINE', '0040445e', '12285', 0]
+['DW_TAG_compile_unit', 'parse.c', 'NONE', 0, 'END LINE', '0040745b', '10485', 0]
+['DW_TAG_compile_unit', 'expression.c', 'NONE', 0, 'END LINE', '00409d50', '18669', 0]
+['DW_TAG_compile_unit', 'heap.c', 'NONE', 0, 'END LINE', '0040e63d', '936', 0]
+['DW_TAG_compile_unit', 'type.c', 'NONE', 0, 'END LINE', '0040e9e5', '6119', 0]
+['DW_TAG_compile_unit', 'variable.c', 'NONE', 0, 'END LINE', '004101cc', '5173', 0]
+['DW_TAG_compile_unit', 'clibrary.c', 'NONE', 0, 'END LINE', '00411601', '1262', 0]
+['DW_TAG_compile_unit', 'platform.c', 'NONE', 0, 'END LINE', '00411aef', '3389', 0]
+['DW_TAG_compile_unit', 'include.c', 'NONE', 0, 'END LINE', '0041282c', '963', 0]
+['DW_TAG_compile_unit', 'debug.c', 'NONE', 0, 'END LINE', '00412bef', '1171', 0]
+['DW_TAG_compile_unit', 'platform/platform_unix.c', 'NONE', 0, 'END LINE', '00413082', '803', 0]
+['DW_TAG_compile_unit', 'platform/library_unix.c', 'NONE', 0, 'END LINE', '004133a5', '171', 0]
+['DW_TAG_compile_unit', 'cstdlib/stdio.c', 'NONE', 0, 'END LINE', '00413450', '8480', 0]
+['DW_TAG_compile_unit', 'cstdlib/math.c', 'NONE', 0, 'END LINE', '00415570', '2502', 0]
+['DW_TAG_compile_unit', 'cstdlib/string.c', 'NONE', 0, 'END LINE', '00415f36', '2451', 0]
+['DW_TAG_compile_unit', 'cstdlib/stdlib.c', 'NONE', 0, 'END LINE', '004168c9', '1317', 0]
+['DW_TAG_compile_unit', 'cstdlib/time.c', 'NONE', 0, 'END LINE', '00416dee', '1008', 0]
+['DW_TAG_compile_unit', 'cstdlib/errno.c', 'NONE', 0, 'END LINE', '004171de', '3908', 0]
+['DW_TAG_compile_unit', 'cstdlib/ctype.c', 'NONE', 0, 'END LINE', '00418122', '1191', 0]
+['DW_TAG_compile_unit', 'cstdlib/stdbool.c', 'NONE', 0, 'END LINE', '004185c9', '159', 0]
+['DW_TAG_compile_unit', 'cstdlib/unistd.c', 'NONE', 0, 502, '00418668', '4862', 0]
+IN SCOPE:  main picoc.c 1 WITH:  main picoc.c 16
+DECLARED HERE:  main picoc.c 16
+DECLARED HERE:  argc picoc.c 16
+DECLARED HERE:  argv picoc.c 16
+DECLARED HERE:  ParamCount picoc.c 18
+DECLARED HERE:  DontRunMain picoc.c 19
+DECLARED HERE:  StackSize picoc.c 20
+START LINE:  0
+END LINE:  0
+CURRENT LINE:  21
+IN SCOPE (GLOBAL VARIABLE):  Picoc picoc.c 21 WITH:  Picoc interpreter.h 61
+DECLARED HERE:  pc picoc.c 21
+IN SCOPE:  argc picoc.c 23 WITH:  argc picoc.c 16
+IN SCOPE:  main picoc.c 25 WITH:  main picoc.c 16
+IN SCOPE:  main picoc.c 26 WITH:  main picoc.c 16
+IN SCOPE:  PicocInitialise picoc.c 31 WITH:  PicocInitialise platform.c 9
+IN SCOPE:  StackSize picoc.c 31 WITH:  StackSize picoc.c 20
+IN SCOPE:  DontRunMain picoc.c 35 WITH:  DontRunMain picoc.c 19
+IN SCOPE:  PicocIncludeAllSystemHeaders picoc.c 36 WITH:  PicocIncludeAllSystemHeaders include.c 59
+IN SCOPE:  ParamCount picoc.c 37 WITH:  ParamCount picoc.c 18
+IN SCOPE:  argc picoc.c 40 WITH:  argc picoc.c 16
+IN SCOPE:  ParamCount picoc.c 40 WITH:  ParamCount picoc.c 18
+IN SCOPE:  PicocIncludeAllSystemHeaders picoc.c 42 WITH:  PicocIncludeAllSystemHeaders include.c 59
+IN SCOPE:  PicocParseInteractive picoc.c 43 WITH:  PicocParseInteractive parse.c 1002
+IN SCOPE:  PicocCleanup picoc.c 49 WITH:  PicocCleanup platform.c 32
+IN SCOPE:  pc picoc.c 50 WITH:  pc picoc.c 21
+IN SCOPE:  ParamCount picoc.c 53 WITH:  ParamCount picoc.c 18
+IN SCOPE:  argc picoc.c 53 WITH:  argc picoc.c 16
+IN SCOPE:  PicocPlatformScanFile picoc.c 54 WITH:  PicocPlatformScanFile platform_unix.c 120
+IN SCOPE:  PicocCallMain picoc.c 57 WITH:  PicocCallMain platform.c 55
+IN SCOPE:  argc picoc.c 57 WITH:  argc picoc.c 16
+IN SCOPE:  ParamCount picoc.c 57 WITH:  ParamCount picoc.c 18
+IN SCOPE:  PicocCleanup picoc.c 60 WITH:  PicocCleanup platform.c 32
+IN SCOPE:  pc picoc.c 61 WITH:  pc picoc.c 21
+IN SCOPE:  PicocInitialise picoc.c 75 WITH:  PicocInitialise platform.c 9
+IN SCOPE:  PicocCleanup picoc.c 92 WITH:  PicocCleanup platform.c 32
+IN SCOPE:  PicocParse picoc.c 97 WITH:  PicocParse parse.c 936
+IN SCOPE:  PicocParseInteractive picoc.c 99 WITH:  PicocParseInteractive parse.c 1002
+IN SCOPE:  PicocCleanup picoc.c 100 WITH:  PicocCleanup platform.c 32
+DECLARED HERE:  TableInit table.c 7
+START LINE:  0
+END LINE:  0
+CURRENT LINE:  7
+IN SCOPE (GLOBAL VARIABLE):  Picoc table.c 7 WITH:  Picoc interpreter.h 61
+DECLARED HERE:  pc table.c 7
+IN SCOPE:  TableInitTable table.c 9 WITH:  TableInitTable table.c 32
+IN SCOPE:  pc table.c 10 WITH:  pc table.c 7
+IN SCOPE:  TableStrRegister table.c 10 WITH:  TableStrRegister table.c 166
+DECLARED HERE:  TableHash table.c 14
+DECLARED HERE:  Key table.c 14
+DECLARED HERE:  Len table.c 14
+DECLARED HERE:  Hash table.c 16
+IN SCOPE:  Len table.c 16 WITH:  Len table.c 14
+DECLARED HERE:  Offset table.c 17
+DECLARED HERE:  Count table.c 18
+IN SCOPE:  Count table.c 18 WITH:  Count table.c 176
+IN SCOPE:  Count table.c 20 WITH:  Count table.c 18
+IN SCOPE:  Offset table.c 20 WITH:  Offset table.c 17
+IN SCOPE:  Len table.c 20 WITH:  Len table.c 14
+IN SCOPE:  Offset table.c 22 WITH:  Offset table.c 17
+IN SCOPE:  Offset table.c 23 WITH:  Offset table.c 17
+IN SCOPE:  Hash table.c 25 WITH:  Hash table.c 16
+IN SCOPE:  Key table.c 25 WITH:  Key table.c 14
+IN SCOPE:  Offset table.c 25 WITH:  Offset table.c 17
+IN SCOPE:  Hash table.c 28 WITH:  Hash table.c 16
+DECLARED HERE:  TableInitTable table.c 32
+START LINE:  0
+END LINE:  0
+CURRENT LINE:  32
+IN SCOPE (GLOBAL VARIABLE):  Table table.c 32 WITH:  Table interpreter.h 258
+DECLARED HERE:  Tbl table.c 32
+START LINE:  0
+END LINE:  0
+CURRENT LINE:  32
+IN SCOPE (GLOBAL VARIABLE):  TableEntry table.c 32 WITH:  TableEntry interpreter.h 231
+DECLARED HERE:  HashTable table.c 32
+DECLARED HERE:  Size table.c 32
+DECLARED HERE:  OnHeap table.c 32
+IN SCOPE:  Tbl table.c 34 WITH:  Tbl table.c 32
+IN SCOPE:  Size table.c 34 WITH:  Size table.c 32
+IN SCOPE:  Tbl table.c 35 WITH:  Tbl table.c 32
+IN SCOPE:  OnHeap table.c 35 WITH:  OnHeap table.c 32
+IN SCOPE:  Tbl table.c 36 WITH:  Tbl table.c 32
+IN SCOPE:  HashTable table.c 36 WITH:  HashTable table.c 32
+IN SCOPE:  HashTable table.c 37 WITH:  HashTable table.c 32
+START LINE:  0
+END LINE:  0
+CURRENT LINE:  37
+IN SCOPE (GLOBAL VARIABLE):  TableEntry table.c 37 WITH:  TableEntry interpreter.h 231
+IN SCOPE:  Size table.c 37 WITH:  Size table.c 32
+START LINE:  0
+END LINE:  0
+CURRENT LINE:  41
+IN SCOPE (GLOBAL VARIABLE):  TableEntry table.c 41 WITH:  TableEntry interpreter.h 231
+DECLARED HERE:  TableSearch table.c 41
+START LINE:  0
+END LINE:  0
+CURRENT LINE:  41
+IN SCOPE (GLOBAL VARIABLE):  Table table.c 41 WITH:  Table interpreter.h 258
+IN SCOPE:  Tbl table.c 41 WITH:  Tbl table.c 32
+IN SCOPE:  Key table.c 41 WITH:  Key table.c 14
+DECLARED HERE:  AddAt table.c 41

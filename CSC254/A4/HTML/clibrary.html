@@ -1,0 +1,677 @@
+<html><a name="1"></a>/* picoc mini standard C library - provides an optional tiny C standard library 
+<br><a name="2"></a> * <font color="red">if </font>BUILTIN_MINI_STDLIB is defined */ 
+<br><a name="3"></a> 
+<br><a name="4"></a>#<font color="red">include </font>"picoc.h"
+<br><a name="5"></a>#<font color="red">include </font>"interpreter.h"
+<br><a name="6"></a>
+<br><a name="7"></a>
+<br><a name="8"></a>/* endian-ness checking */
+<br><a name="9"></a>static const <font color="blue">int </font>__ENDIAN_CHECK__ = 1;
+<br><a name="10"></a>static <font color="blue">int </font>BigEndian;
+<br><a name="11"></a>static <font color="blue">int </font>LittleEndian;
+<br><a name="12"></a>
+<br><a name="13"></a>
+<br><a name="14"></a>/* global initialisation <font color="red">for </font>libraries */
+<br><a name="15"></a>void LibraryInit(<a href="interpreter_header.html#61">Picoc</a> *pc)
+<br><a name="16"></a>{
+<br><a name="17"></a>    
+<br><a name="18"></a>    /* define the version number macro */
+<br><a name="19"></a>    <a href="clibrary.html#15">pc</a>->Version<font color="blue">String </font>= <a style="color:green" href="table.html#166">TableStrRegister</a>(<a href="clibrary.html#15">pc</a>, PICOC_VERSION);
+<br><a name="20"></a>    <a style="color:green" href="variable.html#375">VariableDefinePlatformVar</a>(<a href="clibrary.html#15">pc</a>, NULL, "PICOC_VERSION", <a href="clibrary.html#15">pc</a>->CharPtrType, (union <a href="interpreter_header.html#196">AnyValue</a> *)&<a href="clibrary.html#15">pc</a>->VersionString, FALSE);
+<br><a name="21"></a>
+<br><a name="22"></a>    /* define endian-ness macros */
+<br><a name="23"></a>    <a href="clibrary.html#10">BigEndian</a> = ((*(char*)&__ENDIAN_CHECK__) == 0);
+<br><a name="24"></a>    <a href="clibrary.html#11">LittleEndian</a> = ((*(char*)&__ENDIAN_CHECK__) == 1);
+<br><a name="25"></a>
+<br><a name="26"></a>    <a style="color:green" href="variable.html#375">VariableDefinePlatformVar</a>(<a href="clibrary.html#15">pc</a>, NULL, "BIG_ENDIAN", &<a href="clibrary.html#15">pc</a>->IntType, (union <a href="interpreter_header.html#196">AnyValue</a> *)&BigEndian, FALSE);
+<br><a name="27"></a>    <a style="color:green" href="variable.html#375">VariableDefinePlatformVar</a>(<a href="clibrary.html#15">pc</a>, NULL, "LITTLE_ENDIAN", &<a href="clibrary.html#15">pc</a>->IntType, (union <a href="interpreter_header.html#196">AnyValue</a> *)&LittleEndian, FALSE);
+<br><a name="28"></a>}
+<br><a name="29"></a>
+<br><a name="30"></a>/* add a library */
+<br><a name="31"></a>void LibraryAdd(<a href="interpreter_header.html#61">Picoc</a> *<a href="clibrary.html#15">pc</a>, <font color="blue">struct </font><a href="interpreter_header.html#258">Table</a> *Global<a href="interpreter_header.html#258">Table</a>, const <font color="blue">char </font>*LibraryName, <font color="blue">struct </font><a href="interpreter_header.html#301">LibraryFunction</a> *FuncList)
+<br><a name="32"></a>{
+<br><a name="33"></a>    <font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> Parser;
+<br><a name="34"></a>    <font color="blue">int </font>Count;
+<br><a name="35"></a>    <font color="blue">char </font>*Identifier;
+<br><a name="36"></a>    <font color="blue">struct </font><a href="interpreter_header.html#160">ValueType</a> *ReturnType;
+<br><a name="37"></a>    <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *New<a href="interpreter_header.html#217">Value</a>;
+<br><a name="38"></a>    void *Tokens;
+<br><a name="39"></a>    <font color="blue">char </font>*IntrinsicName = <a style="color:green" href="table.html#166">TableStrRegister</a>(<a href="clibrary.html#15">pc</a>, "c library");
+<br><a name="40"></a>    
+<br><a name="41"></a>    /* read all the library definitions */
+<br><a name="42"></a>    <font color="red">for </font>(<a href="clibrary.html#34">Count</a> = 0; FuncList<font color="red">[</font><a href="clibrary.html#34">Count</a><font color="red">]</font>.Prototype != NULL; <a href="clibrary.html#34">Count</a>++)
+<br><a name="43"></a>    {
+<br><a name="44"></a>        <a href="clibrary.html#38">Tokens</a> = <a style="color:green" href="lex.html#593">LexAnalyse</a>(<a href="clibrary.html#15">pc</a>, <a href="clibrary.html#39">IntrinsicName</a>, FuncList<font color="red">[</font>Count<font color="red">]</font>.Prototype, strlen((<font color="blue">char </font>*)FuncList<font color="red">[</font>Count<font color="red">]</font>.Prototype), NULL);
+<br><a name="45"></a>        <a style="color:green" href="lex.html#610">LexInitParser</a>(&Parser, <a href="clibrary.html#15">pc</a>, FuncList<font color="red">[</font>Count<font color="red">]</font>.Prototype, <a href="clibrary.html#38">Tokens</a>, <a href="clibrary.html#39">IntrinsicName</a>, TRUE, FALSE);
+<br><a name="46"></a>        <a style="color:green" href="type.html#526">TypeParse</a>(&Parser, &ReturnType, &Identifier, NULL);
+<br><a name="47"></a>        <a href="clibrary.html#37">NewValue</a> = <a style="color:green" href="parse.html#59">ParseFunctionDefinition</a>(&Parser, <a href="clibrary.html#36">ReturnType</a>, <a href="clibrary.html#35">Identifier</a>);
+<br><a name="48"></a>        <a href="clibrary.html#37">NewValue</a>->Val->FuncDef.Intrinsic = FuncList<font color="red">[</font>Count<font color="red">]</font>.Func;
+<br><a name="49"></a>        <a style="color:green" href="heap.html#226">HeapFreeMem</a>(<a href="clibrary.html#15">pc</a>, <a href="clibrary.html#38">Tokens</a>);
+<br><a name="50"></a>    }
+<br><a name="51"></a>}
+<br><a name="52"></a>
+<br><a name="53"></a>/* pr<font color="blue">int </font>a type to a stream without using printf/sprintf */
+<br><a name="54"></a>void PrintType(<font color="blue">struct </font><a href="interpreter_header.html#160">ValueType</a> *Typ, <a href="interpreter_header.html#37">IOFILE</a> *Stream)
+<br><a name="55"></a>{
+<br><a name="56"></a>    switch (<a href="clibrary.html#54">Typ</a>->Base)
+<br><a name="57"></a>    {
+<br><a name="58"></a>        case TypeVoid:          <a style="color:green" href="stdio.html#729">PrintStr</a>("void", <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="59"></a>        case TypeInt:           <a style="color:green" href="stdio.html#729">PrintStr</a>("int", <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="60"></a>        case TypeShort:         <a style="color:green" href="stdio.html#729">PrintStr</a>("short", <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="61"></a>        case TypeChar:          <a style="color:green" href="stdio.html#729">PrintStr</a>("char", <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="62"></a>        case TypeLong:          <a style="color:green" href="stdio.html#729">PrintStr</a>("long", <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="63"></a>        case TypeUnsignedInt:   <a style="color:green" href="stdio.html#729">PrintStr</a>("<font color="blue">unsigned </font>int", <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="64"></a>        case TypeUnsignedShort: <a style="color:green" href="stdio.html#729">PrintStr</a>("<font color="blue">unsigned </font>short", <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="65"></a>        case TypeUnsignedLong:  <a style="color:green" href="stdio.html#729">PrintStr</a>("<font color="blue">unsigned </font>long", <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="66"></a>        case TypeUnsignedChar:  <a style="color:green" href="stdio.html#729">PrintStr</a>("<font color="blue">unsigned </font>char", <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="67"></a>#ifndef NO_FP
+<br><a name="68"></a>        case TypeFP:            <a style="color:green" href="stdio.html#729">PrintStr</a>("double", <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="69"></a>#endif
+<br><a name="70"></a>        case TypeFunction:      <a style="color:green" href="stdio.html#729">PrintStr</a>("function", <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="71"></a>        case TypeMacro:         <a style="color:green" href="stdio.html#729">PrintStr</a>("macro", <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="72"></a>        case <a href="clibrary.html#54">Typ</a>ePointer:       <font color="red">if </font>(<a href="clibrary.html#54">Typ</a>->From<a href="clibrary.html#54">Typ</a>e) Print<a href="clibrary.html#54">Typ</a>e(<a href="clibrary.html#54">Typ</a>->From<a href="clibrary.html#54">Typ</a>e, <a href="clibrary.html#54">Stream</a>); <a style="color:green" href="stdio.html#719">PrintCh</a>('*', <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="73"></a>        case <a href="clibrary.html#54">Typ</a>eArray:         <a style="color:green" href="clibrary.html#54">Print<a href="clibrary.html#54">Typ</a>e</a>(<a href="clibrary.html#54">Typ</a>->From<a href="clibrary.html#54">Typ</a>e, <a href="clibrary.html#54">Stream</a>); <a style="color:green" href="stdio.html#719">PrintCh</a>('<font color="red">[</font>', <a href="clibrary.html#54">Stream</a>); <font color="red">if </font>(<a href="clibrary.html#54">Typ</a>->ArraySize != 0) <a style="color:green" href="stdio.html#724">PrintSimpleInt</a>(<a href="clibrary.html#54">Typ</a>->ArraySize, <a href="clibrary.html#54">Stream</a>); <a style="color:green" href="stdio.html#719">PrintCh</a>('<font color="red">]</font>', <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="74"></a>        case <a href="clibrary.html#54">Typ</a>eStruct:        <a style="color:green" href="stdio.html#729">PrintStr</a>("<font color="blue">struct </font>", <a href="clibrary.html#54">Stream</a>); <a style="color:green" href="stdio.html#729">PrintStr</a>( <a href="clibrary.html#54">Typ</a>->Identifier, <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="75"></a>        case <a href="clibrary.html#54">Typ</a>eUnion:         <a style="color:green" href="stdio.html#729">PrintStr</a>("union ", <a href="clibrary.html#54">Stream</a>); <a style="color:green" href="stdio.html#729">PrintStr</a>(<a href="clibrary.html#54">Typ</a>->Identifier, <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="76"></a>        case <a href="clibrary.html#54">Typ</a>eEnum:          <a style="color:green" href="stdio.html#729">PrintStr</a>("enum ", <a href="clibrary.html#54">Stream</a>); <a style="color:green" href="stdio.html#729">PrintStr</a>(<a href="clibrary.html#54">Typ</a>->Identifier, <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="77"></a>        case TypeGotoLabel:     <a style="color:green" href="stdio.html#729">PrintStr</a>("<font color="red">goto </font>label ", <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="78"></a>        case Type_Type:         <a style="color:green" href="stdio.html#729">PrintStr</a>("type ", <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="79"></a>    }
+<br><a name="80"></a>}
+<br><a name="81"></a>
+<br><a name="82"></a>
+<br><a name="83"></a>#ifdef BUILTIN_MINI_STDLIB
+<br><a name="84"></a>
+<br><a name="85"></a>/* 
+<br><a name="86"></a> * This is a simplified standard library <font color="red">for </font>small embedded systems. It doesn't require
+<br><a name="87"></a> * a system stdio library to operate.
+<br><a name="88"></a> *
+<br><a name="89"></a> * A more complete standard library <font color="red">for </font>larger computers is in the library_XXX.c files.
+<br><a name="90"></a> */
+<br><a name="91"></a> 
+<br><a name="92"></a>static <font color="blue">int </font>TRUEValue = 1;
+<br><a name="93"></a>static <font color="blue">int </font><a href="unistd.html#10">ZeroValue</a> = 0;
+<br><a name="94"></a>
+<br><a name="95"></a>void <a style="color:green" href="stdio.html#46">BasicIOInit</a>(<a href="interpreter_header.html#61">Picoc</a> *<a href="clibrary.html#15">pc</a>)
+<br><a name="96"></a>{
+<br><a name="97"></a>    <a href="clibrary.html#15">pc</a>->CStdOutBase.Putch = &PlatformPutc;
+<br><a name="98"></a>    <a href="clibrary.html#15">pc</a>->CStdOut = &CStdOutBase;
+<br><a name="99"></a>}
+<br><a name="100"></a>
+<br><a name="101"></a>/* initialise the C library */
+<br><a name="102"></a>void CLibraryInit(<a href="interpreter_header.html#61">Picoc</a> *<a href="clibrary.html#15">pc</a>)
+<br><a name="103"></a>{
+<br><a name="104"></a>    /* define some constants */
+<br><a name="105"></a>    <a style="color:green" href="variable.html#375">VariableDefinePlatformVar</a>(<a href="clibrary.html#15">pc</a>, NULL, "NULL", &IntType, (union <a href="interpreter_header.html#196">AnyValue</a> *)&ZeroValue, FALSE);
+<br><a name="106"></a>    <a style="color:green" href="variable.html#375">VariableDefinePlatformVar</a>(<a href="clibrary.html#15">pc</a>, NULL, "TRUE", &IntType, (union <a href="interpreter_header.html#196">AnyValue</a> *)&TRUEValue, FALSE);
+<br><a name="107"></a>    <a style="color:green" href="variable.html#375">VariableDefinePlatformVar</a>(<a href="clibrary.html#15">pc</a>, NULL, "FALSE", &IntType, (union <a href="interpreter_header.html#196">AnyValue</a> *)&ZeroValue, FALSE);
+<br><a name="108"></a>}
+<br><a name="109"></a>
+<br><a name="110"></a>/* stream <font color="red">for </font>writing into strings */
+<br><a name="111"></a>void SPutc(<font color="blue">unsigned </font><font color="blue">char </font>Ch, union <a href="interpreter_header.html#308">Output<a href="clibrary.html#54">Stream</a>Info</a> *<a href="clibrary.html#54">Stream</a>)
+<br><a name="112"></a>{
+<br><a name="113"></a>    <font color="blue">struct </font><a href="interpreter_header.html#310">StringOutputStream</a> *Out = &Stream->Str;
+<br><a name="114"></a>    *Out->WritePos++ = Ch;
+<br><a name="115"></a>}
+<br><a name="116"></a>
+<br><a name="117"></a>/* pr<font color="blue">int </font>a character to a stream without using printf/sprintf */
+<br><a name="118"></a>void <a style="color:green" href="stdio.html#719">PrintCh</a>(<font color="blue">char </font>OutCh, <font color="blue">struct </font>Output<a href="clibrary.html#54">Stream</a> *<a href="clibrary.html#54">Stream</a>)
+<br><a name="119"></a>{
+<br><a name="120"></a>    (*<a href="clibrary.html#54">Stream</a>->Putch)(OutCh, &<a href="clibrary.html#54">Stream</a>->i);
+<br><a name="121"></a>}
+<br><a name="122"></a>
+<br><a name="123"></a>/* pr<font color="blue">int </font>a string to a stream without using printf/sprintf */
+<br><a name="124"></a>void <a style="color:green" href="stdio.html#729">PrintStr</a>(const <font color="blue">char </font>*Str, <font color="blue">struct </font>Output<a href="clibrary.html#54">Stream</a> *<a href="clibrary.html#54">Stream</a>)
+<br><a name="125"></a>{
+<br><a name="126"></a>    <font color="red">while </font>(*Str != 0)
+<br><a name="127"></a>        <a style="color:green" href="stdio.html#719">PrintCh</a>(*Str++, <a href="clibrary.html#54">Stream</a>);
+<br><a name="128"></a>}
+<br><a name="129"></a>
+<br><a name="130"></a>/* pr<font color="blue">int </font>a single character a given number of times */
+<br><a name="131"></a>void PrintRepeatedChar(<a href="interpreter_header.html#61">Picoc</a> *<a href="clibrary.html#15">pc</a>, <font color="blue">char </font>ShowChar, <font color="blue">int </font>Length, <font color="blue">struct </font>Output<a href="clibrary.html#54">Stream</a> *<a href="clibrary.html#54">Stream</a>)
+<br><a name="132"></a>{
+<br><a name="133"></a>    <font color="red">while </font>(Length-- > 0)
+<br><a name="134"></a>        <a style="color:green" href="stdio.html#719">PrintCh</a>(ShowChar, <a href="clibrary.html#54">Stream</a>);
+<br><a name="135"></a>}
+<br><a name="136"></a>
+<br><a name="137"></a>/* pr<font color="blue">int </font>an <font color="blue">unsigned </font>integer to a stream without using printf/sprintf */
+<br><a name="138"></a>void PrintUnsigned(<font color="blue">unsigned </font><font color="blue">long </font>Num, <font color="blue">unsigned </font><font color="blue">int </font>Base, <font color="blue">int </font>FieldWidth, <font color="blue">int </font>ZeroPad, <font color="blue">int </font>LeftJustify, <font color="blue">struct </font>Output<a href="clibrary.html#54">Stream</a> *<a href="clibrary.html#54">Stream</a>)
+<br><a name="139"></a>{
+<br><a name="140"></a>    <font color="blue">char </font>Result<font color="red">[</font>33<font color="red">]</font>;
+<br><a name="141"></a>    <font color="blue">int </font>ResPos = sizeof(Result);
+<br><a name="142"></a>
+<br><a name="143"></a>    Result<font color="red">[</font>--ResPos<font color="red">]</font> = '\0';
+<br><a name="144"></a>    <font color="red">if </font>(Num == 0)
+<br><a name="145"></a>        Result<font color="red">[</font>--ResPos<font color="red">]</font> = '0';
+<br><a name="146"></a>            
+<br><a name="147"></a>    <font color="red">while </font>(Num > 0)
+<br><a name="148"></a>    {
+<br><a name="149"></a>        <font color="blue">unsigned </font><font color="blue">long </font>NextNum = Num / Base;
+<br><a name="150"></a>        <font color="blue">unsigned </font><font color="blue">long </font>Digit = Num - NextNum * Base;
+<br><a name="151"></a>        <font color="red">if </font>(Digit < 10)
+<br><a name="152"></a>            Result<font color="red">[</font>--ResPos<font color="red">]</font> = '0' + Digit;
+<br><a name="153"></a>        else
+<br><a name="154"></a>            Result<font color="red">[</font>--ResPos<font color="red">]</font> = 'a' + Digit - 10;
+<br><a name="155"></a>        
+<br><a name="156"></a>        Num = NextNum;
+<br><a name="157"></a>    }
+<br><a name="158"></a>    
+<br><a name="159"></a>    <font color="red">if </font>(FieldWidth > 0 && !LeftJustify)
+<br><a name="160"></a>        PrintRepeatedChar(ZeroPad ? '0' : ' ', FieldWidth - (sizeof(Result) - 1 - ResPos), <a href="clibrary.html#54">Stream</a>);
+<br><a name="161"></a>        
+<br><a name="162"></a>    <a style="color:green" href="stdio.html#729">PrintStr</a>(&Result<font color="red">[</font>ResPos<font color="red">]</font>, <a href="clibrary.html#54">Stream</a>);
+<br><a name="163"></a>
+<br><a name="164"></a>    <font color="red">if </font>(FieldWidth > 0 && LeftJustify)
+<br><a name="165"></a>        PrintRepeatedChar(' ', FieldWidth - (sizeof(Result) - 1 - ResPos), <a href="clibrary.html#54">Stream</a>);
+<br><a name="166"></a>}
+<br><a name="167"></a>
+<br><a name="168"></a>/* pr<font color="blue">int </font>an integer to a stream without using printf/sprintf */
+<br><a name="169"></a>void <a style="color:green" href="stdio.html#724">PrintSimpleInt</a>(<font color="blue">long </font>Num, <font color="blue">struct </font>Output<a href="clibrary.html#54">Stream</a> *<a href="clibrary.html#54">Stream</a>)
+<br><a name="170"></a>{
+<br><a name="171"></a>    PrintInt(Num, -1, FALSE, FALSE, <a href="clibrary.html#54">Stream</a>);
+<br><a name="172"></a>}
+<br><a name="173"></a>
+<br><a name="174"></a>/* pr<font color="blue">int </font>an integer to a stream without using printf/sprintf */
+<br><a name="175"></a>void PrintInt(<font color="blue">long </font>Num, <font color="blue">int </font>FieldWidth, <font color="blue">int </font>ZeroPad, <font color="blue">int </font>LeftJustify, <font color="blue">struct </font>Output<a href="clibrary.html#54">Stream</a> *<a href="clibrary.html#54">Stream</a>)
+<br><a name="176"></a>{
+<br><a name="177"></a>    <font color="red">if </font>(Num < 0)
+<br><a name="178"></a>    {
+<br><a name="179"></a>        <a style="color:green" href="stdio.html#719">PrintCh</a>('-', <a href="clibrary.html#54">Stream</a>);
+<br><a name="180"></a>        Num = -Num;
+<br><a name="181"></a>        <font color="red">if </font>(FieldWidth != 0)
+<br><a name="182"></a>            FieldWidth--;
+<br><a name="183"></a>    }
+<br><a name="184"></a>    
+<br><a name="185"></a>    PrintUnsigned((<font color="blue">unsigned </font>long)Num, 10, FieldWidth, ZeroPad, LeftJustify, <a href="clibrary.html#54">Stream</a>);
+<br><a name="186"></a>}
+<br><a name="187"></a>
+<br><a name="188"></a>#ifndef NO_FP
+<br><a name="189"></a>/* pr<font color="blue">int </font>a <font color="blue">double </font>to a stream without using printf/sprintf */
+<br><a name="190"></a>void <a style="color:green" href="stdio.html#734">PrintFP</a>(<font color="blue">double </font>Num, <font color="blue">struct </font>Output<a href="clibrary.html#54">Stream</a> *<a href="clibrary.html#54">Stream</a>)
+<br><a name="191"></a>{
+<br><a name="192"></a>    <font color="blue">int </font>Exponent = 0;
+<br><a name="193"></a>    <font color="blue">int </font>MaxDecimal;
+<br><a name="194"></a>    
+<br><a name="195"></a>    <font color="red">if </font>(Num < 0)
+<br><a name="196"></a>    {
+<br><a name="197"></a>        <a style="color:green" href="stdio.html#719">PrintCh</a>('-', <a href="clibrary.html#54">Stream</a>);
+<br><a name="198"></a>        Num = -Num;    
+<br><a name="199"></a>    }
+<br><a name="200"></a>    
+<br><a name="201"></a>    <font color="red">if </font>(Num >= 1e7)
+<br><a name="202"></a>        Exponent = log10(Num);
+<br><a name="203"></a>    else <font color="red">if </font>(Num <= 1e-7 && Num != 0.0)
+<br><a name="204"></a>        Exponent = log10(Num) - 0.999999999;
+<br><a name="205"></a>    
+<br><a name="206"></a>    Num /= pow(10.0, Exponent);    
+<br><a name="207"></a>    PrintInt((long)Num, 0, FALSE, FALSE, <a href="clibrary.html#54">Stream</a>);
+<br><a name="208"></a>    <a style="color:green" href="stdio.html#719">PrintCh</a>('.', <a href="clibrary.html#54">Stream</a>);
+<br><a name="209"></a>    Num = (Num - (long)Num) * 10;
+<br><a name="210"></a>    <font color="red">if </font>(abs(Num) >= 1e-7)
+<br><a name="211"></a>    {
+<br><a name="212"></a>        <font color="red">for </font>(MaxDecimal = 6; MaxDecimal > 0 && abs(Num) >= 1e-7; Num = (Num - (long)(Num + 1e-7)) * 10, MaxDecimal--)
+<br><a name="213"></a>            <a style="color:green" href="stdio.html#719">PrintCh</a>('0' + (long)(Num + 1e-7), <a href="clibrary.html#54">Stream</a>);
+<br><a name="214"></a>    }
+<br><a name="215"></a>    else
+<br><a name="216"></a>        <a style="color:green" href="stdio.html#719">PrintCh</a>('0', <a href="clibrary.html#54">Stream</a>);
+<br><a name="217"></a>        
+<br><a name="218"></a>    <font color="red">if </font>(Exponent != 0)
+<br><a name="219"></a>    {
+<br><a name="220"></a>        <a style="color:green" href="stdio.html#719">PrintCh</a>('e', <a href="clibrary.html#54">Stream</a>);
+<br><a name="221"></a>        PrintInt(Exponent, 0, FALSE, FALSE, <a href="clibrary.html#54">Stream</a>);
+<br><a name="222"></a>    }
+<br><a name="223"></a>}
+<br><a name="224"></a>#endif
+<br><a name="225"></a>
+<br><a name="226"></a>/* intrinsic functions made available to the language */
+<br><a name="227"></a>void GenericPrintf(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs, <font color="blue">struct </font>Output<a href="clibrary.html#54">Stream</a> *<a href="clibrary.html#54">Stream</a>)
+<br><a name="228"></a>{
+<br><a name="229"></a>    <font color="blue">char </font>*FPos;
+<br><a name="230"></a>    <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *NextArg = Param<font color="red">[</font>0<font color="red">]</font>;
+<br><a name="231"></a>    <font color="blue">struct </font><a href="interpreter_header.html#160">ValueType</a> *FormatType;
+<br><a name="232"></a>    <font color="blue">int </font>ArgCount = 1;
+<br><a name="233"></a>    <font color="blue">int </font>LeftJustify = FALSE;
+<br><a name="234"></a>    <font color="blue">int </font>ZeroPad = FALSE;
+<br><a name="235"></a>    <font color="blue">int </font>FieldWidth = 0;
+<br><a name="236"></a>    <font color="blue">char </font>*Format = Param<font color="red">[</font>0<font color="red">]</font>->Val->Pointer;
+<br><a name="237"></a>    
+<br><a name="238"></a>    <font color="red">for </font>(FPos = Format; *FPos != '\0'; FPos++)
+<br><a name="239"></a>    {
+<br><a name="240"></a>        <font color="red">if </font>(*FPos == '%')
+<br><a name="241"></a>        {
+<br><a name="242"></a>            FPos++;
+<br><a name="243"></a>&nbsp&nbsp&nbsp&nbsp    FieldWidth = 0;
+<br><a name="244"></a>            <font color="red">if </font>(*FPos == '-')
+<br><a name="245"></a>            {
+<br><a name="246"></a>                /* a leading '-' means left justify */
+<br><a name="247"></a>                LeftJustify = TRUE;
+<br><a name="248"></a>                FPos++;
+<br><a name="249"></a>            }
+<br><a name="250"></a>            
+<br><a name="251"></a>            <font color="red">if </font>(*FPos == '0')
+<br><a name="252"></a>            {
+<br><a name="253"></a>                /* a leading zero means zero pad a decimal number */
+<br><a name="254"></a>                ZeroPad = TRUE;
+<br><a name="255"></a>                FPos++;
+<br><a name="256"></a>            }
+<br><a name="257"></a>            
+<br><a name="258"></a>            /* get any field width in the format */
+<br><a name="259"></a>            <font color="red">while </font>(isdigit((int)*FPos))
+<br><a name="260"></a>                FieldWidth = FieldWidth * 10 + (*FPos++ - '0');
+<br><a name="261"></a>            
+<br><a name="262"></a>            /* now check the format type */
+<br><a name="263"></a>            switch (*FPos)
+<br><a name="264"></a>            {
+<br><a name="265"></a>                case 's': FormatType = CharPtrType; break;
+<br><a name="266"></a>                case 'd': case 'u': case 'x': case 'b': case 'c': FormatType = &IntType; break;
+<br><a name="267"></a>#ifndef NO_FP
+<br><a name="268"></a>                case 'f': FormatType = &FPType; break;
+<br><a name="269"></a>#endif
+<br><a name="270"></a>                case '%': <a style="color:green" href="stdio.html#719">PrintCh</a>('%', <a href="clibrary.html#54">Stream</a>); FormatType = NULL; break;
+<br><a name="271"></a>                case '\0': FPos--; FormatType = NULL; break;
+<br><a name="272"></a>                default:  <a style="color:green" href="stdio.html#719">PrintCh</a>(*FPos, <a href="clibrary.html#54">Stream</a>); FormatType = NULL; break;
+<br><a name="273"></a>            }
+<br><a name="274"></a>            
+<br><a name="275"></a>            <font color="red">if </font>(FormatType != NULL)
+<br><a name="276"></a>            { 
+<br><a name="277"></a>                /* we have to format something */
+<br><a name="278"></a>                <font color="red">if </font>(ArgCount >= NumArgs)
+<br><a name="279"></a>                    <a style="color:green" href="stdio.html#729">PrintStr</a>("XXX", <a href="clibrary.html#54">Stream</a>);   /* not enough parameters <font color="red">for </font>format */
+<br><a name="280"></a>                else
+<br><a name="281"></a>                {
+<br><a name="282"></a>                    NextArg = (<font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *)((<font color="blue">char </font>*)NextArg + MEM_ALIGN(sizeof(<font color="blue">struct </font><a href="interpreter_header.html#217">Value</a>) + TypeStackSize<a href="interpreter_header.html#217">Value</a>(NextArg)));
+<br><a name="283"></a>                    <font color="red">if </font>(NextArg->Typ != FormatType && 
+<br><a name="284"></a>                            !((FormatType == &IntType || *FPos == 'f') && IS_NUMERIC_COERCIBLE(NextArg)) &&
+<br><a name="285"></a>                            !(FormatType == CharPtrType && (NextArg->Typ->Base == TypePointer || 
+<br><a name="286"></a>                                                             (NextArg->Typ->Base == TypeArray && NextArg->Typ->FromType->Base == TypeChar) ) ) )
+<br><a name="287"></a>                        <a style="color:green" href="stdio.html#729">PrintStr</a>("XXX", <a href="clibrary.html#54">Stream</a>);   /* bad type <font color="red">for </font>format */
+<br><a name="288"></a>                    else
+<br><a name="289"></a>                    {
+<br><a name="290"></a>                        switch (*FPos)
+<br><a name="291"></a>                        {
+<br><a name="292"></a>                            case 's':
+<br><a name="293"></a>                            {
+<br><a name="294"></a>                                <font color="blue">char </font>*Str;
+<br><a name="295"></a>                                
+<br><a name="296"></a>                                <font color="red">if </font>(NextArg->Typ->Base == TypePointer)
+<br><a name="297"></a>                                    Str = NextArg->Val->Pointer;
+<br><a name="298"></a>                                else
+<br><a name="299"></a>                                    Str = &NextArg->Val->ArrayMem<font color="red">[</font>0<font color="red">]</font>;
+<br><a name="300"></a>                                    
+<br><a name="301"></a>                                <font color="red">if </font>(Str == NULL)
+<br><a name="302"></a>                                    <a style="color:green" href="stdio.html#729">PrintStr</a>("NULL", <a href="clibrary.html#54">Stream</a>); 
+<br><a name="303"></a>                                else
+<br><a name="304"></a>                                    <a style="color:green" href="stdio.html#729">PrintStr</a>(Str, <a href="clibrary.html#54">Stream</a>); 
+<br><a name="305"></a>                                break;
+<br><a name="306"></a>                            }
+<br><a name="307"></a>                            case 'd': PrintInt(<a style="color:green" href="expression.html#164">ExpressionCoerceInteger</a>(NextArg), FieldWidth, ZeroPad, LeftJustify, <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="308"></a>                            case 'u': PrintUnsigned(<a style="color:green" href="expression.html#184">ExpressionCoerceUnsignedInteger</a>(NextArg), 10, FieldWidth, ZeroPad, LeftJustify, <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="309"></a>                            case 'x': PrintUnsigned(<a style="color:green" href="expression.html#184">ExpressionCoerceUnsignedInteger</a>(NextArg), 16, FieldWidth, ZeroPad, LeftJustify, <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="310"></a>                            case 'b': PrintUnsigned(<a style="color:green" href="expression.html#184">ExpressionCoerceUnsignedInteger</a>(NextArg), 2, FieldWidth, ZeroPad, LeftJustify, <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="311"></a>                            case 'c': <a style="color:green" href="stdio.html#719">PrintCh</a>(<a style="color:green" href="expression.html#184">ExpressionCoerceUnsignedInteger</a>(NextArg), <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="312"></a>#ifndef NO_FP
+<br><a name="313"></a>                            case 'f': <a style="color:green" href="stdio.html#734">PrintFP</a>(<a style="color:green" href="expression.html#205">ExpressionCoerceFP</a>(NextArg), <a href="clibrary.html#54">Stream</a>); break;
+<br><a name="314"></a>#endif
+<br><a name="315"></a>                        }
+<br><a name="316"></a>                    }
+<br><a name="317"></a>                }
+<br><a name="318"></a>                
+<br><a name="319"></a>                ArgCount++;
+<br><a name="320"></a>            }
+<br><a name="321"></a>        }
+<br><a name="322"></a>        else
+<br><a name="323"></a>            <a style="color:green" href="stdio.html#719">PrintCh</a>(*FPos, <a href="clibrary.html#54">Stream</a>);
+<br><a name="324"></a>    }
+<br><a name="325"></a>}
+<br><a name="326"></a>
+<br><a name="327"></a>/* printf(): pr<font color="blue">int </font>to console output */
+<br><a name="328"></a>void LibPrintf(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="329"></a>{
+<br><a name="330"></a>    <font color="blue">struct </font>OutputStream ConsoleStream;
+<br><a name="331"></a>    
+<br><a name="332"></a>    ConsoleStream.Putch = &PlatformPutc;
+<br><a name="333"></a>    GenericPrintf(<a href="clibrary.html#33">Parser</a>, ReturnValue, Param, NumArgs, &ConsoleStream);
+<br><a name="334"></a>}
+<br><a name="335"></a>
+<br><a name="336"></a>/* sprintf(): pr<font color="blue">int </font>to a string */
+<br><a name="337"></a>void LibSPrintf(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="338"></a>{
+<br><a name="339"></a>    <font color="blue">struct </font>OutputStream StrStream;
+<br><a name="340"></a>    
+<br><a name="341"></a>    StrStream.Putch = &SPutc;
+<br><a name="342"></a>    StrStream.i.Str.<a href="clibrary.html#33">Parser</a> = <a href="clibrary.html#33">Parser</a>;
+<br><a name="343"></a>    StrStream.i.Str.WritePos = Param<font color="red">[</font>0<font color="red">]</font>->Val->Pointer;
+<br><a name="344"></a>
+<br><a name="345"></a>    GenericPrintf(<a href="clibrary.html#33">Parser</a>, ReturnValue, Param+1, NumArgs-1, &StrStream);
+<br><a name="346"></a>    <a style="color:green" href="stdio.html#719">PrintCh</a>(0, &StrStream);
+<br><a name="347"></a>    ReturnValue->Val->Pointer = *Param;
+<br><a name="348"></a>}
+<br><a name="349"></a>
+<br><a name="350"></a>/* get a line of input. protected from buffer overrun */
+<br><a name="351"></a>void LibGets(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="352"></a>{
+<br><a name="353"></a>    ReturnValue->Val->Pointer = <a style="color:green" href="platform_unix.html#39">PlatformGetLine</a>(Param<font color="red">[</font>0<font color="red">]</font>->Val->Pointer, GETS_BUF_MAX, NULL);
+<br><a name="354"></a>    <font color="red">if </font>(ReturnValue->Val->Pointer != NULL)
+<br><a name="355"></a>    {
+<br><a name="356"></a>        <font color="blue">char </font>*EOLPos = strchr(Param<font color="red">[</font>0<font color="red">]</font>->Val->Pointer, '\n');
+<br><a name="357"></a>        <font color="red">if </font>(EOLPos != NULL)
+<br><a name="358"></a>            *EOLPos = '\0';
+<br><a name="359"></a>    }
+<br><a name="360"></a>}
+<br><a name="361"></a>
+<br><a name="362"></a>void LibGetc(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="363"></a>{
+<br><a name="364"></a>    ReturnValue->Val->Integer = <a style="color:green" href="platform_unix.html#69">PlatformGetCharacter</a>();
+<br><a name="365"></a>}
+<br><a name="366"></a>
+<br><a name="367"></a>void LibExit(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="368"></a>{
+<br><a name="369"></a>    <a style="color:green" href="platform_unix.html#135">PlatformExit</a>(Param<font color="red">[</font>0<font color="red">]</font>->Val->Integer);
+<br><a name="370"></a>}
+<br><a name="371"></a>
+<br><a name="372"></a>#ifdef PICOC_LIBRARY
+<br><a name="373"></a>void LibSin(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="374"></a>{
+<br><a name="375"></a>    ReturnValue->Val->FP = sin(Param<font color="red">[</font>0<font color="red">]</font>->Val->FP);
+<br><a name="376"></a>}
+<br><a name="377"></a>
+<br><a name="378"></a>void LibCos(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="379"></a>{
+<br><a name="380"></a>    ReturnValue->Val->FP = cos(Param<font color="red">[</font>0<font color="red">]</font>->Val->FP);
+<br><a name="381"></a>}
+<br><a name="382"></a>
+<br><a name="383"></a>void LibTan(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="384"></a>{
+<br><a name="385"></a>    ReturnValue->Val->FP = tan(Param<font color="red">[</font>0<font color="red">]</font>->Val->FP);
+<br><a name="386"></a>}
+<br><a name="387"></a>
+<br><a name="388"></a>void LibAsin(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="389"></a>{
+<br><a name="390"></a>    ReturnValue->Val->FP = asin(Param<font color="red">[</font>0<font color="red">]</font>->Val->FP);
+<br><a name="391"></a>}
+<br><a name="392"></a>
+<br><a name="393"></a>void LibAcos(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="394"></a>{
+<br><a name="395"></a>    ReturnValue->Val->FP = acos(Param<font color="red">[</font>0<font color="red">]</font>->Val->FP);
+<br><a name="396"></a>}
+<br><a name="397"></a>
+<br><a name="398"></a>void LibAtan(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="399"></a>{
+<br><a name="400"></a>    ReturnValue->Val->FP = atan(Param<font color="red">[</font>0<font color="red">]</font>->Val->FP);
+<br><a name="401"></a>}
+<br><a name="402"></a>
+<br><a name="403"></a>void LibSinh(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="404"></a>{
+<br><a name="405"></a>    ReturnValue->Val->FP = sinh(Param<font color="red">[</font>0<font color="red">]</font>->Val->FP);
+<br><a name="406"></a>}
+<br><a name="407"></a>
+<br><a name="408"></a>void LibCosh(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="409"></a>{
+<br><a name="410"></a>    ReturnValue->Val->FP = cosh(Param<font color="red">[</font>0<font color="red">]</font>->Val->FP);
+<br><a name="411"></a>}
+<br><a name="412"></a>
+<br><a name="413"></a>void LibTanh(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="414"></a>{
+<br><a name="415"></a>    ReturnValue->Val->FP = tanh(Param<font color="red">[</font>0<font color="red">]</font>->Val->FP);
+<br><a name="416"></a>}
+<br><a name="417"></a>
+<br><a name="418"></a>void LibExp(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="419"></a>{
+<br><a name="420"></a>    ReturnValue->Val->FP = exp(Param<font color="red">[</font>0<font color="red">]</font>->Val->FP);
+<br><a name="421"></a>}
+<br><a name="422"></a>
+<br><a name="423"></a>void LibFabs(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="424"></a>{
+<br><a name="425"></a>    ReturnValue->Val->FP = fabs(Param<font color="red">[</font>0<font color="red">]</font>->Val->FP);
+<br><a name="426"></a>}
+<br><a name="427"></a>
+<br><a name="428"></a>void LibLog(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="429"></a>{
+<br><a name="430"></a>    ReturnValue->Val->FP = log(Param<font color="red">[</font>0<font color="red">]</font>->Val->FP);
+<br><a name="431"></a>}
+<br><a name="432"></a>
+<br><a name="433"></a>void LibLog10(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="434"></a>{
+<br><a name="435"></a>    ReturnValue->Val->FP = log10(Param<font color="red">[</font>0<font color="red">]</font>->Val->FP);
+<br><a name="436"></a>}
+<br><a name="437"></a>
+<br><a name="438"></a>void LibPow(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="439"></a>{
+<br><a name="440"></a>    ReturnValue->Val->FP = pow(Param<font color="red">[</font>0<font color="red">]</font>->Val->FP, Param<font color="red">[</font>1<font color="red">]</font>->Val->FP);
+<br><a name="441"></a>}
+<br><a name="442"></a>
+<br><a name="443"></a>void LibSqrt(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="444"></a>{
+<br><a name="445"></a>    ReturnValue->Val->FP = sqrt(Param<font color="red">[</font>0<font color="red">]</font>->Val->FP);
+<br><a name="446"></a>}
+<br><a name="447"></a>
+<br><a name="448"></a>void LibRound(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="449"></a>{
+<br><a name="450"></a>    ReturnValue->Val->FP = floor(Param<font color="red">[</font>0<font color="red">]</font>->Val->FP + 0.5);   /* XXX - fix <font color="red">for </font>soft <font color="blue">float </font>*/
+<br><a name="451"></a>}
+<br><a name="452"></a>
+<br><a name="453"></a>void LibCeil(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="454"></a>{
+<br><a name="455"></a>    ReturnValue->Val->FP = ceil(Param<font color="red">[</font>0<font color="red">]</font>->Val->FP);
+<br><a name="456"></a>}
+<br><a name="457"></a>
+<br><a name="458"></a>void LibFloor(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="459"></a>{
+<br><a name="460"></a>    ReturnValue->Val->FP = floor(Param<font color="red">[</font>0<font color="red">]</font>->Val->FP);
+<br><a name="461"></a>}
+<br><a name="462"></a>#endif
+<br><a name="463"></a>
+<br><a name="464"></a>#ifndef NO_STRING_FUNCTIONS
+<br><a name="465"></a>void LibMalloc(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="466"></a>{
+<br><a name="467"></a>    ReturnValue->Val->Pointer = malloc(Param<font color="red">[</font>0<font color="red">]</font>->Val->Integer);
+<br><a name="468"></a>}
+<br><a name="469"></a>
+<br><a name="470"></a>#ifndef NO_CALLOC
+<br><a name="471"></a>void LibCalloc(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="472"></a>{
+<br><a name="473"></a>    ReturnValue->Val->Pointer = calloc(Param<font color="red">[</font>0<font color="red">]</font>->Val->Integer, Param<font color="red">[</font>1<font color="red">]</font>->Val->Integer);
+<br><a name="474"></a>}
+<br><a name="475"></a>#endif
+<br><a name="476"></a>
+<br><a name="477"></a>#ifndef NO_REALLOC
+<br><a name="478"></a>void LibRealloc(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="479"></a>{
+<br><a name="480"></a>    ReturnValue->Val->Pointer = realloc(Param<font color="red">[</font>0<font color="red">]</font>->Val->Pointer, Param<font color="red">[</font>1<font color="red">]</font>->Val->Integer);
+<br><a name="481"></a>}
+<br><a name="482"></a>#endif
+<br><a name="483"></a>
+<br><a name="484"></a>void LibFree(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="485"></a>{
+<br><a name="486"></a>    free(Param<font color="red">[</font>0<font color="red">]</font>->Val->Pointer);
+<br><a name="487"></a>}
+<br><a name="488"></a>
+<br><a name="489"></a>void LibStrcpy(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="490"></a>{
+<br><a name="491"></a>    <font color="blue">char </font>*To = (<font color="blue">char </font>*)Param<font color="red">[</font>0<font color="red">]</font>->Val->Pointer;
+<br><a name="492"></a>    <font color="blue">char </font>*From = (<font color="blue">char </font>*)Param<font color="red">[</font>1<font color="red">]</font>->Val->Pointer;
+<br><a name="493"></a>    
+<br><a name="494"></a>    <font color="red">while </font>(*From != '\0')
+<br><a name="495"></a>        *To++ = *From++;
+<br><a name="496"></a>    
+<br><a name="497"></a>    *To = '\0';
+<br><a name="498"></a>}
+<br><a name="499"></a>
+<br><a name="500"></a>void LibStrncpy(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="501"></a>{
+<br><a name="502"></a>    <font color="blue">char </font>*To = (<font color="blue">char </font>*)Param<font color="red">[</font>0<font color="red">]</font>->Val->Pointer;
+<br><a name="503"></a>    <font color="blue">char </font>*From = (<font color="blue">char </font>*)Param<font color="red">[</font>1<font color="red">]</font>->Val->Pointer;
+<br><a name="504"></a>    <font color="blue">int </font>Len = Param<font color="red">[</font>2<font color="red">]</font>->Val->Integer;
+<br><a name="505"></a>    
+<br><a name="506"></a>    <font color="red">for </font>(; *From != '\0' && Len > 0; Len--)
+<br><a name="507"></a>        *To++ = *From++;
+<br><a name="508"></a>    
+<br><a name="509"></a>    <font color="red">if </font>(Len > 0)
+<br><a name="510"></a>        *To = '\0';
+<br><a name="511"></a>}
+<br><a name="512"></a>
+<br><a name="513"></a>void LibStrcmp(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="514"></a>{
+<br><a name="515"></a>    <font color="blue">char </font>*Str1 = (<font color="blue">char </font>*)Param<font color="red">[</font>0<font color="red">]</font>->Val->Pointer;
+<br><a name="516"></a>    <font color="blue">char </font>*Str2 = (<font color="blue">char </font>*)Param<font color="red">[</font>1<font color="red">]</font>->Val->Pointer;
+<br><a name="517"></a>    <font color="blue">int </font>StrEnded;
+<br><a name="518"></a>    
+<br><a name="519"></a>    <font color="red">for </font>(StrEnded = FALSE; !StrEnded; StrEnded = (*Str1 == '\0' || *Str2 == '\0'), Str1++, Str2++)
+<br><a name="520"></a>    {
+<br><a name="521"></a>         <font color="red">if </font>(*Str1 &lt; *Str2) { ReturnValue-&gt;Val-&gt;Integer = -1; return; } 
+<br><a name="522"></a>         else <font color="red">if </font>(*Str1 > *Str2) { ReturnValue->Val->Integer = 1; return; }
+<br><a name="523"></a>    }
+<br><a name="524"></a>    
+<br><a name="525"></a>    ReturnValue->Val->Integer = 0;
+<br><a name="526"></a>}
+<br><a name="527"></a>
+<br><a name="528"></a>void LibStrncmp(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="529"></a>{
+<br><a name="530"></a>    <font color="blue">char </font>*Str1 = (<font color="blue">char </font>*)Param<font color="red">[</font>0<font color="red">]</font>->Val->Pointer;
+<br><a name="531"></a>    <font color="blue">char </font>*Str2 = (<font color="blue">char </font>*)Param<font color="red">[</font>1<font color="red">]</font>->Val->Pointer;
+<br><a name="532"></a>    <font color="blue">int </font>Len = Param<font color="red">[</font>2<font color="red">]</font>->Val->Integer;
+<br><a name="533"></a>    <font color="blue">int </font>StrEnded;
+<br><a name="534"></a>    
+<br><a name="535"></a>    <font color="red">for </font>(StrEnded = FALSE; !StrEnded && Len > 0; StrEnded = (*Str1 == '\0' || *Str2 == '\0'), Str1++, Str2++, Len--)
+<br><a name="536"></a>    {
+<br><a name="537"></a>         <font color="red">if </font>(*Str1 &lt; *Str2) { ReturnValue-&gt;Val-&gt;Integer = -1; return; } 
+<br><a name="538"></a>         else <font color="red">if </font>(*Str1 > *Str2) { ReturnValue->Val->Integer = 1; return; }
+<br><a name="539"></a>    }
+<br><a name="540"></a>    
+<br><a name="541"></a>    ReturnValue->Val->Integer = 0;
+<br><a name="542"></a>}
+<br><a name="543"></a>
+<br><a name="544"></a>void LibStrcat(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="545"></a>{
+<br><a name="546"></a>    <font color="blue">char </font>*To = (<font color="blue">char </font>*)Param<font color="red">[</font>0<font color="red">]</font>->Val->Pointer;
+<br><a name="547"></a>    <font color="blue">char </font>*From = (<font color="blue">char </font>*)Param<font color="red">[</font>1<font color="red">]</font>->Val->Pointer;
+<br><a name="548"></a>    
+<br><a name="549"></a>    <font color="red">while </font>(*To != '\0')
+<br><a name="550"></a>        To++;
+<br><a name="551"></a>    
+<br><a name="552"></a>    <font color="red">while </font>(*From != '\0')
+<br><a name="553"></a>        *To++ = *From++;
+<br><a name="554"></a>    
+<br><a name="555"></a>    *To = '\0';
+<br><a name="556"></a>}
+<br><a name="557"></a>
+<br><a name="558"></a>void LibIndex(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="559"></a>{
+<br><a name="560"></a>    <font color="blue">char </font>*Pos = (<font color="blue">char </font>*)Param<font color="red">[</font>0<font color="red">]</font>->Val->Pointer;
+<br><a name="561"></a>    <font color="blue">int </font>SearchChar = Param<font color="red">[</font>1<font color="red">]</font>->Val->Integer;
+<br><a name="562"></a>
+<br><a name="563"></a>    <font color="red">while </font>(*Pos != '\0' && *Pos != SearchChar)
+<br><a name="564"></a>        Pos++;
+<br><a name="565"></a>    
+<br><a name="566"></a>    <font color="red">if </font>(*Pos != SearchChar)
+<br><a name="567"></a>        ReturnValue->Val->Pointer = NULL;
+<br><a name="568"></a>    else
+<br><a name="569"></a>        ReturnValue->Val->Pointer = Pos;
+<br><a name="570"></a>}
+<br><a name="571"></a>
+<br><a name="572"></a>void LibRindex(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="573"></a>{
+<br><a name="574"></a>    <font color="blue">char </font>*Pos = (<font color="blue">char </font>*)Param<font color="red">[</font>0<font color="red">]</font>->Val->Pointer;
+<br><a name="575"></a>    <font color="blue">int </font>SearchChar = Param<font color="red">[</font>1<font color="red">]</font>->Val->Integer;
+<br><a name="576"></a>
+<br><a name="577"></a>    ReturnValue->Val->Pointer = NULL;
+<br><a name="578"></a>    <font color="red">for </font>(; *Pos != '\0'; Pos++)
+<br><a name="579"></a>    {
+<br><a name="580"></a>        <font color="red">if </font>(*Pos == SearchChar)
+<br><a name="581"></a>            ReturnValue->Val->Pointer = Pos;
+<br><a name="582"></a>    }
+<br><a name="583"></a>}
+<br><a name="584"></a>
+<br><a name="585"></a>void LibStrlen(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="586"></a>{
+<br><a name="587"></a>    <font color="blue">char </font>*Pos = (<font color="blue">char </font>*)Param<font color="red">[</font>0<font color="red">]</font>->Val->Pointer;
+<br><a name="588"></a>    <font color="blue">int </font>Len;
+<br><a name="589"></a>    
+<br><a name="590"></a>    <font color="red">for </font>(Len = 0; *Pos != '\0'; Pos++)
+<br><a name="591"></a>        Len++;
+<br><a name="592"></a>    
+<br><a name="593"></a>    ReturnValue->Val->Integer = Len;
+<br><a name="594"></a>}
+<br><a name="595"></a>
+<br><a name="596"></a>void LibMemset(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="597"></a>{
+<br><a name="598"></a>    /* we can use the system memset() */
+<br><a name="599"></a>    memset(Param<font color="red">[</font>0<font color="red">]</font>->Val->Pointer, Param<font color="red">[</font>1<font color="red">]</font>->Val->Integer, Param<font color="red">[</font>2<font color="red">]</font>->Val->Integer);
+<br><a name="600"></a>}
+<br><a name="601"></a>
+<br><a name="602"></a>void LibMemcpy(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="603"></a>{
+<br><a name="604"></a>    /* we can use the system memcpy() */
+<br><a name="605"></a>    memcpy(Param<font color="red">[</font>0<font color="red">]</font>->Val->Pointer, Param<font color="red">[</font>1<font color="red">]</font>->Val->Pointer, Param<font color="red">[</font>2<font color="red">]</font>->Val->Integer);
+<br><a name="606"></a>}
+<br><a name="607"></a>
+<br><a name="608"></a>void LibMemcmp(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="clibrary.html#33">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Return<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **Param, <font color="blue">int </font>NumArgs)
+<br><a name="609"></a>{
+<br><a name="610"></a>    <font color="blue">unsigned </font><font color="blue">char </font>*Mem1 = (<font color="blue">unsigned </font><font color="blue">char </font>*)Param<font color="red">[</font>0<font color="red">]</font>->Val->Pointer;
+<br><a name="611"></a>    <font color="blue">unsigned </font><font color="blue">char </font>*Mem2 = (<font color="blue">unsigned </font><font color="blue">char </font>*)Param<font color="red">[</font>1<font color="red">]</font>->Val->Pointer;
+<br><a name="612"></a>    <font color="blue">int </font>Len = Param<font color="red">[</font>2<font color="red">]</font>->Val->Integer;
+<br><a name="613"></a>    
+<br><a name="614"></a>    <font color="red">for </font>(; Len > 0; Mem1++, Mem2++, Len--)
+<br><a name="615"></a>    {
+<br><a name="616"></a>         <font color="red">if </font>(*Mem1 &lt; *Mem2) { ReturnValue-&gt;Val-&gt;Integer = -1; return; } 
+<br><a name="617"></a>         else <font color="red">if </font>(*Mem1 > *Mem2) { ReturnValue->Val->Integer = 1; return; }
+<br><a name="618"></a>    }
+<br><a name="619"></a>    
+<br><a name="620"></a>    ReturnValue->Val->Integer = 0;
+<br><a name="621"></a>}
+<br><a name="622"></a>#endif
+<br><a name="623"></a>
+<br><a name="624"></a>/* list of all library functions and their prototypes */
+<br><a name="625"></a><font color="blue">struct </font><a href="interpreter_header.html#301">LibraryFunction</a> CLibrary<font color="red">[</font><font color="red">]</font> =
+<br><a name="626"></a>{
+<br><a name="627"></a>    { LibPrintf,        "void printf(<font color="blue">char </font>*, ...);" },
+<br><a name="628"></a>    { LibSPrintf,       "<font color="blue">char </font>*sprintf(<font color="blue">char </font>*, <font color="blue">char </font>*, ...);" },
+<br><a name="629"></a>    { LibGets,          "<font color="blue">char </font>*gets(<font color="blue">char </font>*);" },
+<br><a name="630"></a>    { LibGetc,          "<font color="blue">int </font>getchar();" },
+<br><a name="631"></a>    { LibExit,          "void exit(int);" },
+<br><a name="632"></a>#ifdef PICOC_LIBRARY
+<br><a name="633"></a>    { LibSin,           "<font color="blue">float </font>sin(float);" },
+<br><a name="634"></a>    { LibCos,           "<font color="blue">float </font>cos(float);" },
+<br><a name="635"></a>    { LibTan,           "<font color="blue">float </font>tan(float);" },
+<br><a name="636"></a>    { LibAsin,          "<font color="blue">float </font>asin(float);" },
+<br><a name="637"></a>    { LibAcos,          "<font color="blue">float </font>acos(float);" },
+<br><a name="638"></a>    { LibAtan,          "<font color="blue">float </font>atan(float);" },
+<br><a name="639"></a>    { LibSinh,          "<font color="blue">float </font>sinh(float);" },
+<br><a name="640"></a>    { LibCosh,          "<font color="blue">float </font>cosh(float);" },
+<br><a name="641"></a>    { LibTanh,          "<font color="blue">float </font>tanh(float);" },
+<br><a name="642"></a>    { LibExp,           "<font color="blue">float </font>exp(float);" },
+<br><a name="643"></a>    { LibFabs,          "<font color="blue">float </font>fabs(float);" },
+<br><a name="644"></a>    { LibLog,           "<font color="blue">float </font>log(float);" },
+<br><a name="645"></a>    { LibLog10,         "<font color="blue">float </font>log10(float);" },
+<br><a name="646"></a>    { LibPow,           "<font color="blue">float </font>pow(float,float);" },
+<br><a name="647"></a>    { LibSqrt,          "<font color="blue">float </font>sqrt(float);" },
+<br><a name="648"></a>    { LibRound,         "<font color="blue">float </font>round(float);" },
+<br><a name="649"></a>    { LibCeil,          "<font color="blue">float </font>ceil(float);" },
+<br><a name="650"></a>    { LibFloor,         "<font color="blue">float </font>floor(float);" },
+<br><a name="651"></a>#endif
+<br><a name="652"></a>    { LibMalloc,        "void *malloc(int);" },
+<br><a name="653"></a>#ifndef NO_CALLOC
+<br><a name="654"></a>    { LibCalloc,        "void *calloc(int,int);" },
+<br><a name="655"></a>#endif
+<br><a name="656"></a>#ifndef NO_REALLOC
+<br><a name="657"></a>    { LibRealloc,       "void *realloc(void *,int);" },
+<br><a name="658"></a>#endif
+<br><a name="659"></a>    { LibFree,          "void free(void *);" },
+<br><a name="660"></a>#ifndef NO_STRING_FUNCTIONS
+<br><a name="661"></a>    { LibStrcpy,        "void strcpy(<font color="blue">char </font>*,<font color="blue">char </font>*);" },
+<br><a name="662"></a>    { LibStrncpy,       "void strncpy(<font color="blue">char </font>*,<font color="blue">char </font>*,int);" },
+<br><a name="663"></a>    { LibStrcmp,        "<font color="blue">int </font>strcmp(<font color="blue">char </font>*,<font color="blue">char </font>*);" },
+<br><a name="664"></a>    { LibStrncmp,       "<font color="blue">int </font>strncmp(<font color="blue">char </font>*,<font color="blue">char </font>*,int);" },
+<br><a name="665"></a>    { LibStrcat,        "void strcat(<font color="blue">char </font>*,<font color="blue">char </font>*);" },
+<br><a name="666"></a>    { LibIndex,         "<font color="blue">char </font>*index(<font color="blue">char </font>*,int);" },
+<br><a name="667"></a>    { LibRindex,        "<font color="blue">char </font>*rindex(<font color="blue">char </font>*,int);" },
+<br><a name="668"></a>    { LibStrlen,        "<font color="blue">int </font>strlen(<font color="blue">char </font>*);" },
+<br><a name="669"></a>    { LibMemset,        "void memset(void *,int,int);" },
+<br><a name="670"></a>    { LibMemcpy,        "void memcpy(void *,void *,int);" },
+<br><a name="671"></a>    { LibMemcmp,        "<font color="blue">int </font>memcmp(void *,void *,int);" },
+<br><a name="672"></a>#endif
+<br><a name="673"></a>    { NULL,             NULL }
+<br><a name="674"></a>};
+<br><a name="675"></a>
+<br><a name="676"></a>#end<font color="red">if </font>/* BUILTIN_MINI_STDLIB */
+<br><a name="677"></a></html>

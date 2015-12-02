@@ -1,0 +1,63 @@
+~~~~~~~~~~ SAMPLE OUTPUT ~~~~~~~~~~
+
+Ada:
+
+[jboullia@cycle1 A1]$ /home/hoover/u/cs254/bin/gnatmake treeenumeration.adb -o TreeEnumeration
+gcc -c treeenumeration.adb
+gnatbind -x treeenumeration.ali
+gnatlink treeenumeration.ali -o TreeEnumeration
+[jboullia@cycle1 A1]$ ./TreeEnumeration 4
+(((())))
+((()()))
+((())())
+(()(()))
+(()()())
+
+C#:
+
+[jboullia@cycle1 A1]$ /home/hoover/u/cs254/bin/mcs TreeEnumeration.cs
+[jboullia@cycle1 A1]$ /home/hoover/u/cs254/bin/mono TreeEnumeration.exe 4
+(((())))
+((()()))
+((())())
+(()(()))
+(()()())
+
+Prolog:
+
+[jboullia@cycle1 A1]$ swipl TreeEnumeration.pl
+% TreeEnumeration.pl compiled 0.00 sec, 11 clauses
+Welcome to SWI-Prolog (Multi-threaded, 64 bits, Version 6.6.6)
+Copyright (c) 1990-2013 University of Amsterdam, VU Amsterdam
+SWI-Prolog comes with ABSOLUTELY NO WARRANTY. This is free software,
+and you are welcome to redistribute it under certain conditions.
+Please visit http://www.swi-prolog.org for details.
+
+For help, use ?- help(Topic). or ?- apropos(Word).
+
+?- enumerateTrees(4).
+(((())))
+((()()))
+((())())
+(()(()))
+(()()())
+true.
+
+Python:
+
+[jboullia@cycle1 A1]$ python3 TreeEnumeration.py 4
+(((())))
+((()()))
+((())())
+(()(()))
+(()()())
+
+OCaml:
+
+[jboullia@cycle1 A1]$ /home/hoover/u/cs254/bin/ocaml TreeEnumeration.ml 4
+
+(((())))
+((()()))
+((())())
+(()(()))
+(()()())

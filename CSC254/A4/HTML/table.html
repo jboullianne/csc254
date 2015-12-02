@@ -1,0 +1,187 @@
+<html><a name="1"></a>/* picoc hash table module. This hash table code is used <font color="red">for </font>both symbol tables
+<br><a name="2"></a> * and the shared string table. */
+<br><a name="3"></a> 
+<br><a name="4"></a>#<font color="red">include </font>"interpreter.h"
+<br><a name="5"></a>
+<br><a name="6"></a>/* initialise the shared string system */
+<br><a name="7"></a>void TableInit(<a href="interpreter_header.html#61">Picoc</a> *pc)
+<br><a name="8"></a>{
+<br><a name="9"></a>    <a style="color:green" href="table.html#32">TableInitTable</a>(&pc->StringTable, &pc->StringHashTable<font color="red">[</font>0<font color="red">]</font>, STRING_TABLE_SIZE, TRUE);
+<br><a name="10"></a>    <a href="table.html#7">pc</a>->StrEmpty = <a style="color:green" href="table.html#166">TableStrRegister</a>(<a href="table.html#7">pc</a>, "");
+<br><a name="11"></a>}
+<br><a name="12"></a>
+<br><a name="13"></a>/* hash function <font color="red">for </font>strings */
+<br><a name="14"></a>static <font color="blue">unsigned </font><font color="blue">int </font>TableHash(const <font color="blue">char </font>*Key, <font color="blue">int </font>Len)
+<br><a name="15"></a>{
+<br><a name="16"></a>    <font color="blue">unsigned </font><font color="blue">int </font>Hash = <a href="table.html#14">Len</a>;
+<br><a name="17"></a>    <font color="blue">int </font>Offset;
+<br><a name="18"></a>    <font color="blue">int </font><a href="table.html#176">Count</a>;
+<br><a name="19"></a>    
+<br><a name="20"></a>    <font color="red">for </font>(<a href="table.html#18">Count</a> = 0, <a href="table.html#17">Offset</a> = 8; <a href="table.html#18">Count</a> < <a href="table.html#14">Len</a>; <a href="table.html#18">Count</a>++, <a href="table.html#17">Offset</a>+=7)
+<br><a name="21"></a>    {
+<br><a name="22"></a>        <font color="red">if </font>(<a href="table.html#17">Offset</a> > sizeof(<font color="blue">unsigned </font>int) * 8 - 7)
+<br><a name="23"></a>            <a href="table.html#17">Offset</a> -= sizeof(<font color="blue">unsigned </font>int) * 8 - 6;
+<br><a name="24"></a>            
+<br><a name="25"></a>        <a href="table.html#16">Hash</a> ^= *<a href="table.html#14">Key</a>++ << <a href="table.html#17">Offset</a>;
+<br><a name="26"></a>    }
+<br><a name="27"></a>    
+<br><a name="28"></a>    <font color="red">return </font><a href="table.html#16">Hash</a>;
+<br><a name="29"></a>}
+<br><a name="30"></a>
+<br><a name="31"></a>/* initialise a table */
+<br><a name="32"></a>void <a href="interpreter_header.html#258">Table</a>Init<a href="interpreter_header.html#258">Table</a>(<font color="blue">struct </font><a href="interpreter_header.html#258">Table</a> *Tbl, <font color="blue">struct </font><a href="interpreter_header.html#258">Table</a>Entry **Hash<a href="interpreter_header.html#258">Table</a>, <font color="blue">int </font>Size, <font color="blue">int </font>OnHeap)
+<br><a name="33"></a>{
+<br><a name="34"></a>    <a href="table.html#32">Tbl</a>-><a href="table.html#32">Size</a> = <a href="table.html#32">Size</a>;
+<br><a name="35"></a>    <a href="table.html#32">Tbl</a>-><a href="table.html#32">OnHeap</a> = <a href="table.html#32">OnHeap</a>;
+<br><a name="36"></a>    <a href="table.html#32">Tbl</a>-><a href="table.html#32">HashTable</a> = <a href="table.html#32">HashTable</a>;
+<br><a name="37"></a>    memset((void *)<a href="table.html#32">HashTable</a>, '\0', sizeof(<font color="blue">struct </font><a href="interpreter_header.html#231">TableEntry</a> *) * <a href="table.html#32">Size</a>);
+<br><a name="38"></a>}
+<br><a name="39"></a>
+<br><a name="40"></a>/* check a hash table entry <font color="red">for </font>a key */
+<br><a name="41"></a>static <font color="blue">struct </font><a href="interpreter_header.html#231"><a href="interpreter_header.html#258">Table</a>Entry</a> *<a href="interpreter_header.html#258">Table</a>Search(<font color="blue">struct </font><a href="interpreter_header.html#258">Table</a> *<a href="table.html#32">Tbl</a>, const <font color="blue">char </font>*<a href="table.html#14">Key</a>, <font color="blue">int </font>*<a href="table.html#60">AddAt</a>)
+<br><a name="42"></a>{
+<br><a name="43"></a>    <font color="blue">struct </font><a href="interpreter_header.html#231">Table<a href="table.html#125">Entry</a></a> *<a href="table.html#125">Entry</a>;
+<br><a name="44"></a>    <font color="blue">int </font><a href="table.html#104">HashValue</a> = ((<font color="blue">unsigned </font>long)<a href="table.html#14">Key</a>) % <a href="table.html#32">Tbl</a>->Size;   /* shared strings have unique addresses so we don't need to hash them */
+<br><a name="45"></a>    
+<br><a name="46"></a>    <font color="red">for </font>(<a href="table.html#43">Entry</a> = <a href="table.html#32">Tbl</a>->HashTable<font color="red">[</font>HashValue<font color="red">]</font>; <a href="table.html#43">Entry</a> != NULL; <a href="table.html#43">Entry</a> = <a href="table.html#43">Entry</a>->Next)
+<br><a name="47"></a>    {
+<br><a name="48"></a>        <font color="red">if </font>(<a href="table.html#43">Entry</a>->p.v.<a href="table.html#14">Key</a> == <a href="table.html#14">Key</a>)
+<br><a name="49"></a>            <font color="red">return </font><a href="table.html#43">Entry</a>;   /* found */
+<br><a name="50"></a>    }
+<br><a name="51"></a>    
+<br><a name="52"></a>    *<a href="table.html#41">AddAt</a> = <a href="table.html#44">HashValue</a>;    /* didn't find it in the chain */
+<br><a name="53"></a>    <font color="red">return </font>NULL;
+<br><a name="54"></a>}
+<br><a name="55"></a>
+<br><a name="56"></a>/* set an identifier to a value. returns FALSE <font color="red">if </font>it already exists. 
+<br><a name="57"></a> * <a href="table.html#14">Key</a> must be a shared string from <a style="color:green" href="table.html#166">TableStrRegister</a>() */
+<br><a name="58"></a><font color="blue">int </font><a href="interpreter_header.html#258">Table</a>Set(<a href="interpreter_header.html#61">Picoc</a> *<a href="table.html#7">pc</a>, <font color="blue">struct </font><a href="interpreter_header.html#258">Table</a> *<a href="table.html#32">Tbl</a>, <font color="blue">char </font>*<a href="table.html#14">Key</a>, <font color="blue">struct </font><a href="interpreter_header.html#217"><a href="table.html#111">Val</a>ue</a> *<a href="table.html#111">Val</a>, const <font color="blue">char </font>*DeclFileName, <font color="blue">int </font>DeclLine, <font color="blue">int </font>DeclColumn)
+<br><a name="59"></a>{
+<br><a name="60"></a>    <font color="blue">int </font><a href="table.html#41">AddAt</a>;
+<br><a name="61"></a>    <font color="blue">struct </font><a href="interpreter_header.html#231">TableEntry</a> *<a href="table.html#84">FoundEntry</a> = <a style="color:green" href="table.html#41">TableSearch</a>(<a href="table.html#32">Tbl</a>, <a href="table.html#14">Key</a>, &AddAt);
+<br><a name="62"></a>    
+<br><a name="63"></a>    <font color="red">if </font>(<a href="table.html#61">FoundEntry</a> == NULL)
+<br><a name="64"></a>    {   /* add it to the table */
+<br><a name="65"></a>        <font color="blue">struct </font><a href="interpreter_header.html#231">TableEntry</a> *<a href="table.html#148">NewEntry</a> = <a style="color:green" href="variable.html#68">VariableAlloc</a>(<a href="table.html#7">pc</a>, NULL, sizeof(<font color="blue">struct </font><a href="interpreter_header.html#231">TableEntry</a>), <a href="table.html#32">Tbl</a>->OnHeap);
+<br><a name="66"></a>        <a href="table.html#65">NewEntry</a>-><a href="table.html#58">DeclFileName</a> = <a href="table.html#58">DeclFileName</a>;
+<br><a name="67"></a>        <a href="table.html#65">NewEntry</a>-><a href="table.html#58">DeclLine</a> = <a href="table.html#58">DeclLine</a>;
+<br><a name="68"></a>        <a href="table.html#65">NewEntry</a>-><a href="table.html#58">DeclColumn</a> = <a href="table.html#58">DeclColumn</a>;
+<br><a name="69"></a>        <a href="table.html#65">NewEntry</a>->p.v.<a href="table.html#14">Key</a> = <a href="table.html#14">Key</a>;
+<br><a name="70"></a>        <a href="table.html#65">NewEntry</a>->p.v.<a href="table.html#58">Val</a> = <a href="table.html#58">Val</a>;
+<br><a name="71"></a>        <a href="table.html#65">NewEntry</a>->Next = <a href="table.html#32">Tbl</a>->HashTable<font color="red">[</font>AddAt<font color="red">]</font>;
+<br><a name="72"></a>        <a href="table.html#32">Tbl</a>->HashTable<font color="red">[</font>AddAt<font color="red">]</font> = <a href="table.html#65">NewEntry</a>;
+<br><a name="73"></a>        <font color="red">return </font>TRUE;
+<br><a name="74"></a>    }
+<br><a name="75"></a>
+<br><a name="76"></a>    <font color="red">return </font>FALSE;
+<br><a name="77"></a>}
+<br><a name="78"></a>
+<br><a name="79"></a>/* find a value in a table. returns FALSE <font color="red">if </font>not found. 
+<br><a name="80"></a> * <a href="table.html#14">Key</a> must be a shared string from <a style="color:green" href="table.html#166">TableStrRegister</a>() */
+<br><a name="81"></a><font color="blue">int </font><a href="interpreter_header.html#258">Table</a>Get(<font color="blue">struct </font><a href="interpreter_header.html#258">Table</a> *<a href="table.html#32">Tbl</a>, const <font color="blue">char </font>*<a href="table.html#14">Key</a>, <font color="blue">struct </font><a href="interpreter_header.html#217"><a href="table.html#58">Val</a>ue</a> **<a href="table.html#58">Val</a>, const <font color="blue">char </font>**<a href="table.html#58">DeclFileName</a>, <font color="blue">int </font>*<a href="table.html#58">DeclLine</a>, <font color="blue">int </font>*<a href="table.html#58">DeclColumn</a>)
+<br><a name="82"></a>{
+<br><a name="83"></a>    <font color="blue">int </font><a href="table.html#41">AddAt</a>;
+<br><a name="84"></a>    <font color="blue">struct </font><a href="interpreter_header.html#231">TableEntry</a> *<a href="table.html#61">FoundEntry</a> = <a style="color:green" href="table.html#41">TableSearch</a>(<a href="table.html#32">Tbl</a>, <a href="table.html#14">Key</a>, &AddAt);
+<br><a name="85"></a>    <font color="red">if </font>(<a href="table.html#61">FoundEntry</a> == NULL)
+<br><a name="86"></a>        <font color="red">return </font>FALSE;
+<br><a name="87"></a>    
+<br><a name="88"></a>    *<a href="table.html#58">Val</a> = <a href="table.html#61">FoundEntry</a>->p.v.<a href="table.html#58">Val</a>;
+<br><a name="89"></a>    
+<br><a name="90"></a>    <font color="red">if </font>(<a href="table.html#58">DeclFileName</a> != NULL)
+<br><a name="91"></a>    {
+<br><a name="92"></a>        *<a href="table.html#58">DeclFileName</a> = <a href="table.html#61">FoundEntry</a>-><a href="table.html#58">DeclFileName</a>;
+<br><a name="93"></a>        *<a href="table.html#58">DeclLine</a> = <a href="table.html#61">FoundEntry</a>-><a href="table.html#58">DeclLine</a>;
+<br><a name="94"></a>        *<a href="table.html#58">DeclColumn</a> = <a href="table.html#61">FoundEntry</a>-><a href="table.html#58">DeclColumn</a>;
+<br><a name="95"></a>    }
+<br><a name="96"></a>    
+<br><a name="97"></a>    <font color="red">return </font>TRUE;
+<br><a name="98"></a>}
+<br><a name="99"></a>
+<br><a name="100"></a>/* remove an entry from the table */
+<br><a name="101"></a><font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *<a href="interpreter_header.html#258">Table</a>Delete(<a href="interpreter_header.html#61">Picoc</a> *<a href="table.html#7">pc</a>, <font color="blue">struct </font><a href="interpreter_header.html#258">Table</a> *<a href="table.html#32">Tbl</a>, const <font color="blue">char </font>*<a href="table.html#14">Key</a>)
+<br><a name="102"></a>{
+<br><a name="103"></a>    <font color="blue">struct </font><a href="interpreter_header.html#231">TableEntry</a> **EntryPtr;
+<br><a name="104"></a>    <font color="blue">int </font><a href="table.html#44">HashValue</a> = ((<font color="blue">unsigned </font>long)<a href="table.html#14">Key</a>) % <a href="table.html#32">Tbl</a>->Size;   /* shared strings have unique addresses so we don't need to hash them */
+<br><a name="105"></a>    
+<br><a name="106"></a>    <font color="red">for </font>(<a href="table.html#103">EntryPtr</a> = &Tbl->HashTable<font color="red">[</font>HashValue<font color="red">]</font>; *<a href="table.html#103">EntryPtr</a> != NULL; <a href="table.html#103">EntryPtr</a> = &(*<a href="table.html#103">EntryPtr</a>)->Next)
+<br><a name="107"></a>    {
+<br><a name="108"></a>        <font color="red">if </font>((*<a href="table.html#103">EntryPtr</a>)->p.v.<a href="table.html#14">Key</a> == <a href="table.html#14">Key</a>)
+<br><a name="109"></a>        {
+<br><a name="110"></a>            <font color="blue">struct </font><a href="interpreter_header.html#231">TableEntry</a> *DeleteEntry = *<a href="table.html#103">EntryPtr</a>;
+<br><a name="111"></a>            <font color="blue">struct </font><a href="interpreter_header.html#217"><a href="table.html#58">Val</a>ue</a> *<a href="table.html#58">Val</a> = <a href="table.html#110">DeleteEntry</a>->p.v.<a href="table.html#58">Val</a>;
+<br><a name="112"></a>            *<a href="table.html#103">EntryPtr</a> = <a href="table.html#110">DeleteEntry</a>->Next;
+<br><a name="113"></a>            <a style="color:green" href="heap.html#226">HeapFreeMem</a>(<a href="table.html#7">pc</a>, <a href="table.html#110">DeleteEntry</a>);
+<br><a name="114"></a>
+<br><a name="115"></a>            <font color="red">return </font><a href="table.html#58">Val</a>;
+<br><a name="116"></a>        }
+<br><a name="117"></a>    }
+<br><a name="118"></a>
+<br><a name="119"></a>    <font color="red">return </font>NULL;
+<br><a name="120"></a>}
+<br><a name="121"></a>
+<br><a name="122"></a>/* check a hash table entry <font color="red">for </font>an identifier */
+<br><a name="123"></a>static <font color="blue">struct </font><a href="interpreter_header.html#231"><a href="interpreter_header.html#258">Table</a>Entry</a> *<a href="interpreter_header.html#258">Table</a>SearchIdentifier(<font color="blue">struct </font><a href="interpreter_header.html#258">Table</a> *<a href="table.html#32">Tbl</a>, const <font color="blue">char </font>*<a href="table.html#14">Key</a>, <font color="blue">int </font><a href="table.html#14">Len</a>, <font color="blue">int </font>*<a href="table.html#41">AddAt</a>)
+<br><a name="124"></a>{
+<br><a name="125"></a>    <font color="blue">struct </font><a href="interpreter_header.html#231">Table<a href="table.html#43">Entry</a></a> *<a href="table.html#43">Entry</a>;
+<br><a name="126"></a>    <font color="blue">int </font><a href="table.html#44">HashValue</a> = <a style="color:green" href="table.html#14">TableHash</a>(<a href="table.html#14">Key</a>, <a href="table.html#14">Len</a>) % <a href="table.html#32">Tbl</a>->Size;
+<br><a name="127"></a>    
+<br><a name="128"></a>    <font color="red">for </font>(<a href="table.html#43">Entry</a> = <a href="table.html#32">Tbl</a>->HashTable<font color="red">[</font>HashValue<font color="red">]</font>; <a href="table.html#43">Entry</a> != NULL; <a href="table.html#43">Entry</a> = <a href="table.html#43">Entry</a>->Next)
+<br><a name="129"></a>    {
+<br><a name="130"></a>        <font color="red">if </font>(strncmp(&<a href="table.html#43">Entry</a>->p.<a href="table.html#14">Key</a><font color="red">[</font>0<font color="red">]</font>, (<font color="blue">char </font>*)<a href="table.html#14">Key</a>, <a href="table.html#14">Len</a>) == 0 && <a href="table.html#43">Entry</a>->p.<a href="table.html#14">Key</a><font color="red">[</font><a href="table.html#14">Len</a><font color="red">]</font> == '\0')
+<br><a name="131"></a>            <font color="red">return </font><a href="table.html#43">Entry</a>;   /* found */
+<br><a name="132"></a>    }
+<br><a name="133"></a>    
+<br><a name="134"></a>    *<a href="table.html#41">AddAt</a> = <a href="table.html#44">HashValue</a>;    /* didn't find it in the chain */
+<br><a name="135"></a>    <font color="red">return </font>NULL;
+<br><a name="136"></a>}
+<br><a name="137"></a>
+<br><a name="138"></a>/* set an identifier and <font color="red">return </font>the identifier. share <font color="red">if </font>possible */
+<br><a name="139"></a><font color="blue">char </font>*<a href="interpreter_header.html#258">Table</a>SetIdentifier(<a href="interpreter_header.html#61">Picoc</a> *<a href="table.html#7">pc</a>, <font color="blue">struct </font><a href="interpreter_header.html#258">Table</a> *<a href="table.html#32">Tbl</a>, const <font color="blue">char </font>*Ident, <font color="blue">int </font>IdentLen)
+<br><a name="140"></a>{
+<br><a name="141"></a>    <font color="blue">int </font><a href="table.html#41">AddAt</a>;
+<br><a name="142"></a>    <font color="blue">struct </font><a href="interpreter_header.html#231">TableEntry</a> *<a href="table.html#61">FoundEntry</a> = <a style="color:green" href="table.html#123">TableSearch<a href="table.html#139">Ident</a>ifier</a>(<a href="table.html#32">Tbl</a>, <a href="table.html#139">Ident</a>, <a href="table.html#139">Ident</a>Len, &AddAt);
+<br><a name="143"></a>    
+<br><a name="144"></a>    <font color="red">if </font>(<a href="table.html#61">FoundEntry</a> != NULL)
+<br><a name="145"></a>        <font color="red">return </font>&FoundEntry->p.Key<font color="red">[</font>0<font color="red">]</font>;
+<br><a name="146"></a>    else
+<br><a name="147"></a>    {   /* add it to the table - we economise by not allocating the whole structure here */
+<br><a name="148"></a>        <font color="blue">struct </font><a href="interpreter_header.html#231">TableEntry</a> *<a href="table.html#65">NewEntry</a> = <a style="color:green" href="heap.html#135">HeapAllocMem</a>(<a href="table.html#7">pc</a>, sizeof(<font color="blue">struct </font><a href="interpreter_header.html#231">TableEntry</a>) - sizeof(union <a href="interpreter_header.html#231">TableEntry</a>Payload) + <a href="table.html#139">IdentLen</a> + 1);
+<br><a name="149"></a>        <font color="red">if </font>(<a href="table.html#65">NewEntry</a> == NULL)
+<br><a name="150"></a>            <a style="color:green" href="platform.html#147">ProgramFailNoParser</a>(<a href="table.html#7">pc</a>, "out of memory");
+<br><a name="151"></a>            
+<br><a name="152"></a>        strncpy((<font color="blue">char </font>*)&NewEntry->p.Key<font color="red">[</font>0<font color="red">]</font>, (<font color="blue">char </font>*)<a href="table.html#139">Ident</a>, <a href="table.html#139">Ident</a>Len);
+<br><a name="153"></a>        <a href="table.html#65">NewEntry</a>->p.Key<font color="red">[</font>IdentLen<font color="red">]</font> = '\0';
+<br><a name="154"></a>        <a href="table.html#65">NewEntry</a>->Next = <a href="table.html#32">Tbl</a>->HashTable<font color="red">[</font>AddAt<font color="red">]</font>;
+<br><a name="155"></a>        <a href="table.html#32">Tbl</a>->HashTable<font color="red">[</font>AddAt<font color="red">]</font> = <a href="table.html#65">NewEntry</a>;
+<br><a name="156"></a>        <font color="red">return </font>&NewEntry->p.Key<font color="red">[</font>0<font color="red">]</font>;
+<br><a name="157"></a>    }
+<br><a name="158"></a>}
+<br><a name="159"></a>
+<br><a name="160"></a>/* register a string in the shared string store */
+<br><a name="161"></a><font color="blue">char </font>*TableStrRegister2(<a href="interpreter_header.html#61">Picoc</a> *<a href="table.html#7">pc</a>, const <font color="blue">char </font>*Str, <font color="blue">int </font><a href="table.html#14">Len</a>)
+<br><a name="162"></a>{
+<br><a name="163"></a>    <font color="red">return </font><a style="color:green" href="table.html#139">TableSetIdentifier</a>(<a href="table.html#7">pc</a>, &<a href="table.html#7">pc</a>-><a href="table.html#161">Str</a>ingTable, <a href="table.html#161">Str</a>, <a href="table.html#14">Len</a>);
+<br><a name="164"></a>}
+<br><a name="165"></a>
+<br><a name="166"></a><font color="blue">char </font>*Table<a href="table.html#161">Str</a>Register(<a href="interpreter_header.html#61">Picoc</a> *<a href="table.html#7">pc</a>, const <font color="blue">char </font>*<a href="table.html#161">Str</a>)
+<br><a name="167"></a>{
+<br><a name="168"></a>    <font color="red">return </font><a style="color:green" href="table.html#161">Table<a href="table.html#161">Str</a>Register2</a>(<a href="table.html#7">pc</a>, <a href="table.html#161">Str</a>, strlen((<font color="blue">char </font>*)<a href="table.html#161">Str</a>));
+<br><a name="169"></a>}
+<br><a name="170"></a>
+<br><a name="171"></a>/* free all the strings */
+<br><a name="172"></a>void TableStrFree(<a href="interpreter_header.html#61">Picoc</a> *<a href="table.html#7">pc</a>)
+<br><a name="173"></a>{
+<br><a name="174"></a>    <font color="blue">struct </font><a href="interpreter_header.html#231">Table<a href="table.html#43">Entry</a></a> *<a href="table.html#43">Entry</a>;
+<br><a name="175"></a>    <font color="blue">struct </font><a href="interpreter_header.html#231">TableEntry</a> *NextEntry;
+<br><a name="176"></a>    <font color="blue">int </font><a href="table.html#18">Count</a>;
+<br><a name="177"></a>    
+<br><a name="178"></a>    <font color="red">for </font>(<a href="table.html#18">Count</a> = 0; <a href="table.html#18">Count</a> &lt; <a href="table.html#7">pc</a>-&gt;StringTable.Size; <a href="table.html#18">Count</a>++)
+<br><a name="179"></a>    {
+<br><a name="180"></a>        <font color="red">for </font>(<a href="table.html#43">Entry</a> = <a href="table.html#7">pc</a>->StringTable.HashTable<font color="red">[</font>Count<font color="red">]</font>; <a href="table.html#43">Entry</a> != NULL; <a href="table.html#43">Entry</a> = Next<a href="table.html#43">Entry</a>)
+<br><a name="181"></a>        {
+<br><a name="182"></a>            <a href="table.html#175">Next<a href="table.html#43">Entry</a></a> = <a href="table.html#43">Entry</a>->Next;
+<br><a name="183"></a>            <a style="color:green" href="heap.html#226">HeapFreeMem</a>(<a href="table.html#7">pc</a>, <a href="table.html#43">Entry</a>);
+<br><a name="184"></a>        }
+<br><a name="185"></a>    }
+<br><a name="186"></a>}
+<br><a name="187"></a></html>

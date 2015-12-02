@@ -1,0 +1,250 @@
+<html><a name="1"></a>/* picoc's interface to the underlying platform. most platform-specific code
+<br><a name="2"></a> * is in platform/platform_XX.c and platform/library_XX.c */
+<br><a name="3"></a> 
+<br><a name="4"></a>#<font color="red">include </font>"picoc.h"
+<br><a name="5"></a>#<font color="red">include </font>"interpreter.h"
+<br><a name="6"></a>
+<br><a name="7"></a>
+<br><a name="8"></a>/* initialise everything */
+<br><a name="9"></a>void <a href="interpreter_header.html#61">Picoc</a>Initialise(<a href="interpreter_header.html#61">Picoc</a> *pc, <font color="blue">int </font>StackSize)
+<br><a name="10"></a>{
+<br><a name="11"></a>    memset(<a href="platform.html#9">pc</a>, '\0', sizeof(*<a href="platform.html#9">pc</a>));
+<br><a name="12"></a>    <a style="color:green" href="platform_unix.html#22">PlatformInit</a>(<a href="platform.html#9">pc</a>);
+<br><a name="13"></a>    <a style="color:green" href="stdio.html#46">BasicIOInit</a>(<a href="platform.html#9">pc</a>);
+<br><a name="14"></a>    <a style="color:green" href="heap.html#22">HeapInit</a>(<a href="platform.html#9">pc</a>, <a href="platform.html#9">StackSize</a>);
+<br><a name="15"></a>    <a style="color:green" href="table.html#7">TableInit</a>(<a href="platform.html#9">pc</a>);
+<br><a name="16"></a>    <a style="color:green" href="variable.html#11">VariableInit</a>(<a href="platform.html#9">pc</a>);
+<br><a name="17"></a>    <a style="color:green" href="lex.html#87">LexInit</a>(<a href="platform.html#9">pc</a>);
+<br><a name="18"></a>    <a style="color:green" href="type.html#107">TypeInit</a>(<a href="platform.html#9">pc</a>);
+<br><a name="19"></a>#ifndef NO_HASH_INCLUDE
+<br><a name="20"></a>    <a style="color:green" href="include.html#11">IncludeInit</a>(<a href="platform.html#9">pc</a>);
+<br><a name="21"></a>#endif
+<br><a name="22"></a>    <a style="color:green" href="clibrary.html#15">LibraryInit</a>(<a href="platform.html#9">pc</a>);
+<br><a name="23"></a>#ifdef BUILTIN_MINI_STDLIB
+<br><a name="24"></a>    <a style="color:green" href="clibrary.html#31">LibraryAdd</a>(<a href="platform.html#9">pc</a>, &GlobalTable, "c library", &CLibrary<font color="red">[</font>0<font color="red">]</font>);
+<br><a name="25"></a>    CLibraryInit(<a href="platform.html#9">pc</a>);
+<br><a name="26"></a>#endif
+<br><a name="27"></a>    <a style="color:green" href="library_unix.html#26">PlatformLibraryInit</a>(<a href="platform.html#9">pc</a>);
+<br><a name="28"></a>    <a style="color:green" href="debug.html#10">DebugInit</a>(<a href="platform.html#9">pc</a>);
+<br><a name="29"></a>}
+<br><a name="30"></a>
+<br><a name="31"></a>/* free memory */
+<br><a name="32"></a>void <a href="interpreter_header.html#61">Picoc</a>Cleanup(<a href="interpreter_header.html#61">Picoc</a> *<a href="platform.html#9">pc</a>)
+<br><a name="33"></a>{
+<br><a name="34"></a>    <a style="color:green" href="debug.html#17">DebugCleanup</a>(<a href="platform.html#9">pc</a>);
+<br><a name="35"></a>#ifndef NO_HASH_INCLUDE
+<br><a name="36"></a>    <a style="color:green" href="include.html#31">IncludeCleanup</a>(<a href="platform.html#9">pc</a>);
+<br><a name="37"></a>#endif
+<br><a name="38"></a>    <a style="color:green" href="parse.html#7">ParseCleanup</a>(<a href="platform.html#9">pc</a>);
+<br><a name="39"></a>    <a style="color:green" href="lex.html#108">LexCleanup</a>(<a href="platform.html#9">pc</a>);
+<br><a name="40"></a>    <a style="color:green" href="variable.html#61">VariableCleanup</a>(<a href="platform.html#9">pc</a>);
+<br><a name="41"></a>    <a style="color:green" href="type.html#172">TypeCleanup</a>(<a href="platform.html#9">pc</a>);
+<br><a name="42"></a>    <a style="color:green" href="table.html#172">TableStrFree</a>(<a href="platform.html#9">pc</a>);
+<br><a name="43"></a>    <a style="color:green" href="heap.html#58">HeapCleanup</a>(<a href="platform.html#9">pc</a>);
+<br><a name="44"></a>    <a style="color:green" href="platform_unix.html#34">PlatformCleanup</a>(<a href="platform.html#9">pc</a>);
+<br><a name="45"></a>}
+<br><a name="46"></a>
+<br><a name="47"></a>/* platform-dependent code <font color="red">for </font>running programs */
+<br><a name="48"></a>#<font color="red">if </font>defined(UNIX_HOST) || defined(WIN32)
+<br><a name="49"></a>
+<br><a name="50"></a>#define CALL_MAIN_NO_ARGS_RETURN_VOID "main();"
+<br><a name="51"></a>#define CALL_MAIN_WITH_ARGS_RETURN_VOID "main(__argc,__argv);"
+<br><a name="52"></a>#define CALL_MAIN_NO_ARGS_RETURN_INT "__exit_value = <a style="color:green" href="picoc.html#16">main</a>();"
+<br><a name="53"></a>#define CALL_MAIN_WITH_ARGS_RETURN_INT "__exit_value = <a style="color:green" href="picoc.html#16">main</a>(__argc,__argv);"
+<br><a name="54"></a>
+<br><a name="55"></a>void <a href="interpreter_header.html#61">Picoc</a>CallMain(<a href="interpreter_header.html#61">Picoc</a> *<a href="platform.html#9">pc</a>, <font color="blue">int </font>argc, <font color="blue">char </font>**argv)
+<br><a name="56"></a>{
+<br><a name="57"></a>    /* check <font color="red">if </font>the program wants arguments */
+<br><a name="58"></a>    <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Func<a href="interpreter_header.html#217">Value</a> = NULL;
+<br><a name="59"></a>
+<br><a name="60"></a>    <font color="red">if </font>(!VariableDefined(<a href="platform.html#9">pc</a>, <a style="color:green" href="table.html#166">TableStrRegister</a>(<a href="platform.html#9">pc</a>, "main")))
+<br><a name="61"></a>        <a style="color:green" href="platform.html#147">ProgramFailNoParser</a>(<a href="platform.html#9">pc</a>, "main() is not defined");
+<br><a name="62"></a>        
+<br><a name="63"></a>    <a style="color:green" href="variable.html#360">VariableGet</a>(<a href="platform.html#9">pc</a>, NULL, <a style="color:green" href="table.html#166">TableStrRegister</a>(<a href="platform.html#9">pc</a>, "main"), &FuncValue);
+<br><a name="64"></a>    <font color="red">if </font>(<a href="platform.html#58">FuncValue</a>->Typ->Base != TypeFunction)
+<br><a name="65"></a>        <a style="color:green" href="platform.html#147">ProgramFailNoParser</a>(<a href="platform.html#9">pc</a>, "main is not a function - can't call it");
+<br><a name="66"></a>
+<br><a name="67"></a>    <font color="red">if </font>(<a href="platform.html#58">FuncValue</a>->Val->FuncDef.NumParams != 0)
+<br><a name="68"></a>    {
+<br><a name="69"></a>        /* define the arguments */
+<br><a name="70"></a>        <a style="color:green" href="variable.html#375">VariableDefinePlatformVar</a>(<a href="platform.html#9">pc</a>, NULL, "__argc", &<a href="platform.html#9">pc</a>->IntType, (union <a href="interpreter_header.html#196">AnyValue</a> *)&argc, FALSE);
+<br><a name="71"></a>        <a style="color:green" href="variable.html#375">VariableDefinePlatformVar</a>(<a href="platform.html#9">pc</a>, NULL, "__argv", <a href="platform.html#9">pc</a>->CharPtrPtrType, (union <a href="interpreter_header.html#196">AnyValue</a> *)&argv, FALSE);
+<br><a name="72"></a>    }
+<br><a name="73"></a>
+<br><a name="74"></a>    <font color="red">if </font>(<a href="platform.html#58">FuncValue</a>->Val->FuncDef.ReturnType == &pc->VoidType)
+<br><a name="75"></a>    {
+<br><a name="76"></a>        <font color="red">if </font>(<a href="platform.html#58">FuncValue</a>->Val->FuncDef.NumParams == 0)
+<br><a name="77"></a>            <a style="color:green" href="parse.html#936">PicocParse</a>(<a href="platform.html#9">pc</a>, "startup", CALL_MAIN_NO_ARGS_RETURN_VOID, strlen(CALL_MAIN_NO_ARGS_RETURN_VOID), TRUE, TRUE, FALSE, TRUE);
+<br><a name="78"></a>        else
+<br><a name="79"></a>            <a style="color:green" href="parse.html#936">PicocParse</a>(<a href="platform.html#9">pc</a>, "startup", CALL_MAIN_WITH_ARGS_RETURN_VOID, strlen(CALL_MAIN_WITH_ARGS_RETURN_VOID), TRUE, TRUE, FALSE, TRUE);
+<br><a name="80"></a>    }
+<br><a name="81"></a>    else
+<br><a name="82"></a>    {
+<br><a name="83"></a>        <a style="color:green" href="variable.html#375">VariableDefinePlatformVar</a>(<a href="platform.html#9">pc</a>, NULL, "__exit_value", &<a href="platform.html#9">pc</a>->IntType, (union <a href="interpreter_header.html#196">AnyValue</a> *)&<a href="platform.html#9">pc</a>->PicocExitValue, TRUE);
+<br><a name="84"></a>    
+<br><a name="85"></a>        <font color="red">if </font>(<a href="platform.html#58">FuncValue</a>->Val->FuncDef.NumParams == 0)
+<br><a name="86"></a>            <a style="color:green" href="parse.html#936">PicocParse</a>(<a href="platform.html#9">pc</a>, "startup", CALL_MAIN_NO_ARGS_RETURN_INT, strlen(CALL_MAIN_NO_ARGS_RETURN_INT), TRUE, TRUE, FALSE, TRUE);
+<br><a name="87"></a>        else
+<br><a name="88"></a>            <a style="color:green" href="parse.html#936">PicocParse</a>(<a href="platform.html#9">pc</a>, "startup", CALL_MAIN_WITH_ARGS_RETURN_INT, strlen(CALL_MAIN_WITH_ARGS_RETURN_INT), TRUE, TRUE, FALSE, TRUE);
+<br><a name="89"></a>    }
+<br><a name="90"></a>}
+<br><a name="91"></a>#endif
+<br><a name="92"></a>
+<br><a name="93"></a>void PrintSourceTextErrorLine(<a href="interpreter_header.html#37">IOFILE</a> *<a href="platform.html#161">Stream</a>, const <font color="blue">char </font>*FileName, const <font color="blue">char </font>*SourceText, <font color="blue">int </font>Line, <font color="blue">int </font>CharacterPos)
+<br><a name="94"></a>{
+<br><a name="95"></a>    <font color="blue">int </font>LineCount;
+<br><a name="96"></a>    const <font color="blue">char </font>*LinePos;
+<br><a name="97"></a>    const <font color="blue">char </font>*<a href="platform.html#232">CPos</a>;
+<br><a name="98"></a>    <font color="blue">int </font>CCount;
+<br><a name="99"></a>    
+<br><a name="100"></a>    <font color="red">if </font>(<a href="platform.html#93">SourceText</a> != NULL)
+<br><a name="101"></a>    {
+<br><a name="102"></a>        /* find the source line */
+<br><a name="103"></a>        <font color="red">for </font>(<a href="platform.html#96"><a href="platform.html#93">Line</a>Pos</a> = <a href="platform.html#93">SourceText</a>, <a href="platform.html#95"><a href="platform.html#93">Line</a>Count</a> = 1; *<a href="platform.html#96"><a href="platform.html#93">Line</a>Pos</a> != '\0' && <a href="platform.html#95"><a href="platform.html#93">Line</a>Count</a> < <a href="platform.html#93">Line</a>; <a href="platform.html#96"><a href="platform.html#93">Line</a>Pos</a>++)
+<br><a name="104"></a>        {
+<br><a name="105"></a>            <font color="red">if </font>(*<a href="platform.html#96">LinePos</a> == '\n')
+<br><a name="106"></a>                <a href="platform.html#95">LineCount</a>++;
+<br><a name="107"></a>        }
+<br><a name="108"></a>        
+<br><a name="109"></a>        /* display the line */
+<br><a name="110"></a>        <font color="red">for </font>(<a href="platform.html#97">CPos</a> = <a href="platform.html#96">LinePos</a>; *<a href="platform.html#97">CPos</a> != '\n' && *<a href="platform.html#97">CPos</a> != '\0'; <a href="platform.html#97">CPos</a>++)
+<br><a name="111"></a>            <a style="color:green" href="stdio.html#719">PrintCh</a>(*<a href="platform.html#97">CPos</a>, <a href="platform.html#93">Stream</a>);
+<br><a name="112"></a>        <a style="color:green" href="stdio.html#719">PrintCh</a>('\n', <a href="platform.html#93">Stream</a>);
+<br><a name="113"></a>        
+<br><a name="114"></a>        /* display the error position */
+<br><a name="115"></a>        <font color="red">for </font>(<a href="platform.html#97">CPos</a> = <a href="platform.html#96">LinePos</a>, <a href="platform.html#98">CCount</a> = 0; *<a href="platform.html#97">CPos</a> != '\n' && *<a href="platform.html#97">CPos</a> != '\0' && (<a href="platform.html#98">CCount</a> < <a href="platform.html#93">CharacterPos</a> || *<a href="platform.html#97">CPos</a> == ' '); <a href="platform.html#97">CPos</a>++, <a href="platform.html#98">CCount</a>++)
+<br><a name="116"></a>        {
+<br><a name="117"></a>            <font color="red">if </font>(*<a href="platform.html#97">CPos</a> == '\t')
+<br><a name="118"></a>                <a style="color:green" href="stdio.html#719">PrintCh</a>('\t', <a href="platform.html#93">Stream</a>);
+<br><a name="119"></a>            else
+<br><a name="120"></a>                <a style="color:green" href="stdio.html#719">PrintCh</a>(' ', <a href="platform.html#93">Stream</a>);
+<br><a name="121"></a>        }
+<br><a name="122"></a>    }
+<br><a name="123"></a>    else
+<br><a name="124"></a>    {
+<br><a name="125"></a>        /* assume we're in interactive mode - try to make the arrow match up with the input text */
+<br><a name="126"></a>        <font color="red">for </font>(<a href="platform.html#98">CCount</a> = 0; <a href="platform.html#98">CCount</a> < <a href="platform.html#93">CharacterPos</a> + (int)strlen(INTERACTIVE_PROMPT_STATEMENT); <a href="platform.html#98">CCount</a>++)
+<br><a name="127"></a>            <a style="color:green" href="stdio.html#719">PrintCh</a>(' ', <a href="platform.html#93">Stream</a>);
+<br><a name="128"></a>    }
+<br><a name="129"></a>    <a style="color:green" href="platform.html#192">PlatformPrintf</a>(<a href="platform.html#93">Stream</a>, "^\n%s:%d:%d ", <a href="platform.html#93">FileName</a>, <a href="platform.html#93">Line</a>, <a href="platform.html#93">CharacterPos</a>);
+<br><a name="130"></a>    
+<br><a name="131"></a>}
+<br><a name="132"></a>
+<br><a name="133"></a>/* exit with a message */
+<br><a name="134"></a>void ProgramFail(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *Parser, const <font color="blue">char </font>*Message, ...)
+<br><a name="135"></a>{
+<br><a name="136"></a>    <a href="stdio_header.html#79">va_list</a> <a href="platform.html#149">Args</a>;
+<br><a name="137"></a>
+<br><a name="138"></a>    <a style="color:green" href="platform.html#93">PrintSourceTextErrorLine</a>(<a href="platform.html#134">Parser</a>->pc->CStdOut, <a href="platform.html#134">Parser</a>->FileName, <a href="platform.html#134">Parser</a>->SourceText, <a href="platform.html#134">Parser</a>->Line, <a href="platform.html#134">Parser</a>->CharacterPos);
+<br><a name="139"></a>    va_start(<a href="platform.html#136">Args</a>, <a href="platform.html#134">Message</a>);
+<br><a name="140"></a>    <a style="color:green" href="platform.html#201">PlatformVPrintf</a>(<a href="platform.html#134">Parser</a>->pc->CStdOut, <a href="platform.html#134">Message</a>, <a href="platform.html#136">Args</a>);
+<br><a name="141"></a>    va_end(<a href="platform.html#136">Args</a>);
+<br><a name="142"></a>    <a style="color:green" href="platform.html#192">PlatformPrintf</a>(<a href="platform.html#134">Parser</a>->pc->CStdOut, "\n");
+<br><a name="143"></a>    <a style="color:green" href="platform_unix.html#135">PlatformExit</a>(<a href="platform.html#134">Parser</a>->pc, 1);
+<br><a name="144"></a>}
+<br><a name="145"></a>
+<br><a name="146"></a>/* exit with a message, when we're not parsing a program */
+<br><a name="147"></a>void ProgramFailNoParser(<a href="interpreter_header.html#61">Picoc</a> *<a href="platform.html#9">pc</a>, const <font color="blue">char </font>*<a href="platform.html#134">Message</a>, ...)
+<br><a name="148"></a>{
+<br><a name="149"></a>    <a href="stdio_header.html#79">va_list</a> <a href="platform.html#136">Args</a>;
+<br><a name="150"></a>
+<br><a name="151"></a>    va_start(<a href="platform.html#136">Args</a>, <a href="platform.html#134">Message</a>);
+<br><a name="152"></a>    <a style="color:green" href="platform.html#201">PlatformVPrintf</a>(<a href="platform.html#9">pc</a>->CStdOut, <a href="platform.html#134">Message</a>, <a href="platform.html#136">Args</a>);
+<br><a name="153"></a>    va_end(<a href="platform.html#136">Args</a>);
+<br><a name="154"></a>    <a style="color:green" href="platform.html#192">PlatformPrintf</a>(<a href="platform.html#9">pc</a>->CStdOut, "\n");
+<br><a name="155"></a>    <a style="color:green" href="platform_unix.html#135">PlatformExit</a>(<a href="platform.html#9">pc</a>, 1);
+<br><a name="156"></a>}
+<br><a name="157"></a>
+<br><a name="158"></a>/* like <a style="color:green" href="platform.html#134">ProgramFail</a>() but gives descriptive error messages <font color="red">for </font>assignment */
+<br><a name="159"></a>void AssignFail(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="platform.html#134">Parser</a>, const <font color="blue">char </font>*Format, <font color="blue">struct </font><a href="interpreter_header.html#160">ValueType</a> *Type1, <font color="blue">struct </font><a href="interpreter_header.html#160">ValueType</a> *Type2, <font color="blue">int </font>Num1, <font color="blue">int </font>Num2, const <font color="blue">char </font>*FuncName, <font color="blue">int </font>ParamNo)
+<br><a name="160"></a>{
+<br><a name="161"></a>    <a href="interpreter_header.html#37">IOFILE</a> *<a href="platform.html#93">Stream</a> = <a href="platform.html#134">Parser</a>->pc->CStdOut;
+<br><a name="162"></a>    
+<br><a name="163"></a>    <a style="color:green" href="platform.html#93">PrintSourceTextErrorLine</a>(<a href="platform.html#134">Parser</a>->pc->CStdOut, <a href="platform.html#134">Parser</a>->FileName, <a href="platform.html#134">Parser</a>->SourceText, <a href="platform.html#134">Parser</a>->Line, <a href="platform.html#134">Parser</a>->CharacterPos);
+<br><a name="164"></a>    <a style="color:green" href="platform.html#192">PlatformPrintf</a>(<a href="platform.html#93">Stream</a>, "can't %s ", (<a href="platform.html#159">FuncName</a> == NULL) ? "assign" : "set");   
+<br><a name="165"></a>        
+<br><a name="166"></a>    <font color="red">if </font>(<a href="platform.html#159">Type1</a> != NULL)
+<br><a name="167"></a>        <a style="color:green" href="platform.html#192">PlatformPrintf</a>(<a href="platform.html#93">Stream</a>, <a href="platform.html#159">Format</a>, <a href="platform.html#159">Type1</a>, <a href="platform.html#159">Type2</a>);
+<br><a name="168"></a>    else
+<br><a name="169"></a>        <a style="color:green" href="platform.html#192">PlatformPrintf</a>(<a href="platform.html#93">Stream</a>, <a href="platform.html#159">Format</a>, <a href="platform.html#159">Num1</a>, <a href="platform.html#159">Num2</a>);
+<br><a name="170"></a>    
+<br><a name="171"></a>    <font color="red">if </font>(<a href="platform.html#159">FuncName</a> != NULL)
+<br><a name="172"></a>        <a style="color:green" href="platform.html#192">PlatformPrintf</a>(<a href="platform.html#93">Stream</a>, " in argument %d of call to %s()", <a href="platform.html#159">ParamNo</a>, <a href="platform.html#159">FuncName</a>);
+<br><a name="173"></a>    
+<br><a name="174"></a>    <a style="color:green" href="platform.html#192">PlatformPrintf</a>(<a href="platform.html#93">Stream</a>, "\n");
+<br><a name="175"></a>    <a style="color:green" href="platform_unix.html#135">PlatformExit</a>(<a href="platform.html#134">Parser</a>->pc, 1);
+<br><a name="176"></a>}
+<br><a name="177"></a>
+<br><a name="178"></a>/* exit lexing with a message */
+<br><a name="179"></a>void LexFail(<a href="interpreter_header.html#61">Picoc</a> *<a href="platform.html#9">pc</a>, <font color="blue">struct </font><a href="interpreter_header.html#288">LexState</a> *Lexer, const <font color="blue">char </font>*<a href="platform.html#134">Message</a>, ...)
+<br><a name="180"></a>{
+<br><a name="181"></a>    <a href="stdio_header.html#79">va_list</a> <a href="platform.html#136">Args</a>;
+<br><a name="182"></a>
+<br><a name="183"></a>    <a style="color:green" href="platform.html#93">PrintSourceTextErrorLine</a>(<a href="platform.html#9">pc</a>->CStdOut, <a href="platform.html#179">Lexer</a>->FileName, <a href="platform.html#179">Lexer</a>->SourceText, <a href="platform.html#179">Lexer</a>->Line, <a href="platform.html#179">Lexer</a>->CharacterPos);
+<br><a name="184"></a>    va_start(<a href="platform.html#136">Args</a>, <a href="platform.html#134">Message</a>);
+<br><a name="185"></a>    <a style="color:green" href="platform.html#201">PlatformVPrintf</a>(<a href="platform.html#9">pc</a>->CStdOut, <a href="platform.html#134">Message</a>, <a href="platform.html#136">Args</a>);
+<br><a name="186"></a>    va_end(<a href="platform.html#136">Args</a>);
+<br><a name="187"></a>    <a style="color:green" href="platform.html#192">PlatformPrintf</a>(<a href="platform.html#9">pc</a>->CStdOut, "\n");
+<br><a name="188"></a>    <a style="color:green" href="platform_unix.html#135">PlatformExit</a>(<a href="platform.html#9">pc</a>, 1);
+<br><a name="189"></a>}
+<br><a name="190"></a>
+<br><a name="191"></a>/* printf <font color="red">for </font>compiler error reporting */
+<br><a name="192"></a>void PlatformPrintf(<a href="interpreter_header.html#37">IOFILE</a> *<a href="platform.html#93">Stream</a>, const <font color="blue">char </font>*<a href="platform.html#159">Format</a>, ...)
+<br><a name="193"></a>{
+<br><a name="194"></a>    <a href="stdio_header.html#79">va_list</a> <a href="platform.html#136">Args</a>;
+<br><a name="195"></a>    
+<br><a name="196"></a>    va_start(<a href="platform.html#136">Args</a>, <a href="platform.html#159">Format</a>);
+<br><a name="197"></a>    <a style="color:green" href="platform.html#201">PlatformVPrintf</a>(<a href="platform.html#93">Stream</a>, <a href="platform.html#159">Format</a>, <a href="platform.html#136">Args</a>);
+<br><a name="198"></a>    va_end(<a href="platform.html#136">Args</a>);
+<br><a name="199"></a>}
+<br><a name="200"></a>
+<br><a name="201"></a>void PlatformVPrintf(<a href="interpreter_header.html#37">IOFILE</a> *<a href="platform.html#93">Stream</a>, const <font color="blue">char </font>*<a href="platform.html#159">Format</a>, <a href="stdio_header.html#79">va_list</a> <a href="platform.html#136">Args</a>)
+<br><a name="202"></a>{
+<br><a name="203"></a>    const <font color="blue">char </font>*FPos;
+<br><a name="204"></a>    
+<br><a name="205"></a>    <font color="red">for </font>(<a href="platform.html#203">FPos</a> = <a href="platform.html#159">Format</a>; *<a href="platform.html#203">FPos</a> != '\0'; <a href="platform.html#203">FPos</a>++)
+<br><a name="206"></a>    {
+<br><a name="207"></a>        <font color="red">if </font>(*<a href="platform.html#203">FPos</a> == '%')
+<br><a name="208"></a>        {
+<br><a name="209"></a>            <a href="platform.html#203">FPos</a>++;
+<br><a name="210"></a>            switch (*<a href="platform.html#203">FPos</a>)
+<br><a name="211"></a>            {
+<br><a name="212"></a>            case 's': <a style="color:green" href="stdio.html#729">PrintStr</a>(va_arg(<a href="platform.html#136">Args</a>, <font color="blue">char </font>*), <a href="platform.html#93">Stream</a>); break;
+<br><a name="213"></a>            case 'd': <a style="color:green" href="stdio.html#724">PrintSimpleInt</a>(va_arg(<a href="platform.html#136">Args</a>, int), <a href="platform.html#93">Stream</a>); break;
+<br><a name="214"></a>            case 'c': <a style="color:green" href="stdio.html#719">PrintCh</a>(va_arg(<a href="platform.html#136">Args</a>, int), <a href="platform.html#93">Stream</a>); break;
+<br><a name="215"></a>            case 't': <a style="color:green" href="clibrary.html#54">PrintType</a>(va_arg(<a href="platform.html#136">Args</a>, <font color="blue">struct </font><a href="interpreter_header.html#160">ValueType</a> *), <a href="platform.html#93">Stream</a>); break;
+<br><a name="216"></a>#ifndef NO_FP
+<br><a name="217"></a>            case 'f': <a style="color:green" href="stdio.html#734">PrintFP</a>(va_arg(<a href="platform.html#136">Args</a>, double), <a href="platform.html#93">Stream</a>); break;
+<br><a name="218"></a>#endif
+<br><a name="219"></a>            case '%': <a style="color:green" href="stdio.html#719">PrintCh</a>('%', <a href="platform.html#93">Stream</a>); break;
+<br><a name="220"></a>            case '\0': <a href="platform.html#203">FPos</a>--; break;
+<br><a name="221"></a>            }
+<br><a name="222"></a>        }
+<br><a name="223"></a>        else
+<br><a name="224"></a>            <a style="color:green" href="stdio.html#719">PrintCh</a>(*<a href="platform.html#203">FPos</a>, <a href="platform.html#93">Stream</a>);
+<br><a name="225"></a>    }
+<br><a name="226"></a>}
+<br><a name="227"></a>
+<br><a name="228"></a>/* make a new temporary name. takes a static buffer of <font color="blue">char </font><font color="red">[</font>7<font color="red">]</font> as a parameter. should be initialised to "XX0000"
+<br><a name="229"></a> * where XX can be any characters */
+<br><a name="230"></a><font color="blue">char </font>*PlatformMakeTempName(<a href="interpreter_header.html#61">Picoc</a> *<a href="platform.html#9">pc</a>, <font color="blue">char </font>*TempNameBuffer)
+<br><a name="231"></a>{
+<br><a name="232"></a>    <font color="blue">int </font><a href="platform.html#97">CPos</a> = 5;
+<br><a name="233"></a>    
+<br><a name="234"></a>    <font color="red">while </font>(<a href="platform.html#97">CPos</a> > 1)
+<br><a name="235"></a>    {
+<br><a name="236"></a>        <font color="red">if </font>(TempNameBuffer<font color="red">[</font>CPos<font color="red">]</font> < '9')
+<br><a name="237"></a>        {
+<br><a name="238"></a>            TempNameBuffer<font color="red">[</font>CPos<font color="red">]</font>++;
+<br><a name="239"></a>            <font color="red">return </font><a style="color:green" href="table.html#166">TableStrRegister</a>(<a href="platform.html#9">pc</a>, <a href="platform.html#230">TempNameBuffer</a>);
+<br><a name="240"></a>        }
+<br><a name="241"></a>        else
+<br><a name="242"></a>        {
+<br><a name="243"></a>            TempNameBuffer<font color="red">[</font>CPos<font color="red">]</font> = '0';
+<br><a name="244"></a>            <a href="platform.html#97">CPos</a>--;
+<br><a name="245"></a>        }
+<br><a name="246"></a>    }
+<br><a name="247"></a>
+<br><a name="248"></a>    <font color="red">return </font><a style="color:green" href="table.html#166">TableStrRegister</a>(<a href="platform.html#9">pc</a>, <a href="platform.html#230">TempNameBuffer</a>);
+<br><a name="249"></a>}
+<br><a name="250"></a></html>

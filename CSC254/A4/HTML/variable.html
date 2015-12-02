@@ -1,0 +1,475 @@
+<html><a name="1"></a>/* picoc variable storage. This provides ways of defining and accessing
+<br><a name="2"></a> * variables */
+<br><a name="3"></a> 
+<br><a name="4"></a>#<font color="red">include </font>"interpreter.h"
+<br><a name="5"></a>
+<br><a name="6"></a>/* maximum size of a value to temporarily copy <font color="red">while </font>we create a variable */
+<br><a name="7"></a>#define MAX_TMP_COPY_BUF 256
+<br><a name="8"></a>
+<br><a name="9"></a>
+<br><a name="10"></a>/* initialise the variable system */
+<br><a name="11"></a>void VariableInit(<a href="interpreter_header.html#61">Picoc</a> *<a href="variable.html#169">pc</a>)
+<br><a name="12"></a>{
+<br><a name="13"></a>    <a style="color:green" href="table.html#32">TableInitTable</a>(&(<a href="variable.html#11">pc</a>->GlobalTable), &(<a href="variable.html#11">pc</a>->GlobalHashTable)<font color="red">[</font>0<font color="red">]</font>, GLOBAL_TABLE_SIZE, TRUE);
+<br><a name="14"></a>    <a style="color:green" href="table.html#32">TableInitTable</a>(&pc->StringLiteralTable, &pc->StringLiteralHashTable<font color="red">[</font>0<font color="red">]</font>, STRING_LITERAL_TABLE_SIZE, TRUE);
+<br><a name="15"></a>    <a href="variable.html#11">pc</a>->TopStackFrame = NULL;
+<br><a name="16"></a>}
+<br><a name="17"></a>
+<br><a name="18"></a>/* deallocate the contents of a variable */
+<br><a name="19"></a>void VariableFree(<a href="interpreter_header.html#61">Picoc</a> *<a href="variable.html#11">pc</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Val)
+<br><a name="20"></a>{
+<br><a name="21"></a>    <font color="red">if </font>(<a href="variable.html#19">Val</a>-><a href="variable.html#19">Val</a>OnHeap || <a href="variable.html#19">Val</a>->Any<a href="variable.html#19">Val</a>OnHeap)
+<br><a name="22"></a>    {
+<br><a name="23"></a>        /* free function bodies */
+<br><a name="24"></a>        <font color="red">if </font>(<a href="variable.html#19">Val</a>->Typ == &pc->FunctionType && <a href="variable.html#19">Val</a>-><a href="variable.html#19">Val</a>->FuncDef.Intrinsic == NULL && <a href="variable.html#19">Val</a>-><a href="variable.html#19">Val</a>->FuncDef.Body.Pos != NULL)
+<br><a name="25"></a>            <a style="color:green" href="heap.html#226">HeapFreeMem</a>(<a href="variable.html#11">pc</a>, (void *)<a href="variable.html#19">Val</a>-><a href="variable.html#19">Val</a>->FuncDef.Body.Pos);
+<br><a name="26"></a>
+<br><a name="27"></a>        /* free macro bodies */
+<br><a name="28"></a>        <font color="red">if </font>(<a href="variable.html#19">Val</a>->Typ == &pc->MacroType)
+<br><a name="29"></a>            <a style="color:green" href="heap.html#226">HeapFreeMem</a>(<a href="variable.html#11">pc</a>, (void *)<a href="variable.html#19">Val</a>-><a href="variable.html#19">Val</a>->MacroDef.Body.Pos);
+<br><a name="30"></a>
+<br><a name="31"></a>        /* free the <a href="interpreter_header.html#196">AnyValue</a> */
+<br><a name="32"></a>        <font color="red">if </font>(<a href="variable.html#19">Val</a>->Any<a href="variable.html#19">Val</a>OnHeap)
+<br><a name="33"></a>            <a style="color:green" href="heap.html#226">HeapFreeMem</a>(<a href="variable.html#11">pc</a>, <a href="variable.html#19">Val</a>-><a href="variable.html#19">Val</a>);
+<br><a name="34"></a>    }
+<br><a name="35"></a>
+<br><a name="36"></a>    /* free the value */
+<br><a name="37"></a>    <font color="red">if </font>(<a href="variable.html#19">Val</a>-><a href="variable.html#19">Val</a>OnHeap)
+<br><a name="38"></a>        <a style="color:green" href="heap.html#226">HeapFreeMem</a>(<a href="variable.html#11">pc</a>, <a href="variable.html#19">Val</a>);
+<br><a name="39"></a>}
+<br><a name="40"></a>
+<br><a name="41"></a>/* deallocate the global table and the string literal table */
+<br><a name="42"></a>void Variable<a href="interpreter_header.html#258">Table</a>Cleanup(<a href="interpreter_header.html#61">Picoc</a> *<a href="variable.html#11">pc</a>, <font color="blue">struct </font><a href="interpreter_header.html#258">Table</a> *Hash<a href="interpreter_header.html#258">Table</a>)
+<br><a name="43"></a>{
+<br><a name="44"></a>    <font color="blue">struct </font><a href="interpreter_header.html#231">Table<a href="variable.html#167">Entry</a></a> *<a href="variable.html#167">Entry</a>;
+<br><a name="45"></a>    <font color="blue">struct </font><a href="interpreter_header.html#231">TableEntry</a> *<a href="variable.html#168">NextEntry</a>;
+<br><a name="46"></a>    <font color="blue">int </font><a href="variable.html#170">Count</a>;
+<br><a name="47"></a>    
+<br><a name="48"></a>    <font color="red">for </font>(<a href="variable.html#46">Count</a> = 0; <a href="variable.html#46">Count</a> &lt; <a href="variable.html#42">HashTable</a>-&gt;Size; <a href="variable.html#46">Count</a>++)
+<br><a name="49"></a>    {
+<br><a name="50"></a>        <font color="red">for </font>(<a href="variable.html#44">Entry</a> = <a href="variable.html#42">HashTable</a>-><a href="variable.html#42">HashTable</a><font color="red">[</font>Count<font color="red">]</font>; <a href="variable.html#44">Entry</a> != NULL; <a href="variable.html#44">Entry</a> = Next<a href="variable.html#44">Entry</a>)
+<br><a name="51"></a>        {
+<br><a name="52"></a>            <a href="variable.html#45">Next<a href="variable.html#44">Entry</a></a> = <a href="variable.html#44">Entry</a>->Next;
+<br><a name="53"></a>            <a style="color:green" href="variable.html#19">VariableFree</a>(<a href="variable.html#11">pc</a>, <a href="variable.html#44">Entry</a>->p.v.Val);
+<br><a name="54"></a>                
+<br><a name="55"></a>            /* free the hash table entry */
+<br><a name="56"></a>            <a style="color:green" href="heap.html#226">HeapFreeMem</a>(<a href="variable.html#11">pc</a>, <a href="variable.html#44">Entry</a>);
+<br><a name="57"></a>        }
+<br><a name="58"></a>    }
+<br><a name="59"></a>}
+<br><a name="60"></a>
+<br><a name="61"></a>void VariableCleanup(<a href="interpreter_header.html#61">Picoc</a> *<a href="variable.html#11">pc</a>)
+<br><a name="62"></a>{
+<br><a name="63"></a>    <a style="color:green" href="variable.html#42">VariableTableCleanup</a>(<a href="variable.html#11">pc</a>, &<a href="variable.html#11">pc</a>->GlobalTable);
+<br><a name="64"></a>    <a style="color:green" href="variable.html#42">VariableTableCleanup</a>(<a href="variable.html#11">pc</a>, &<a href="variable.html#11">pc</a>->StringLiteralTable);
+<br><a name="65"></a>}
+<br><a name="66"></a>
+<br><a name="67"></a>/* allocate some memory, either on the heap or the stack and check <font color="red">if </font>we've run out */
+<br><a name="68"></a>void *VariableAlloc(<a href="interpreter_header.html#61">Picoc</a> *<a href="variable.html#11">pc</a>, <font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *Parser, <font color="blue">int </font><a href="variable.html#109">Size</a>, <font color="blue">int </font>OnHeap)
+<br><a name="69"></a>{
+<br><a name="70"></a>    void *<a href="variable.html#91">NewValue</a>;
+<br><a name="71"></a>    
+<br><a name="72"></a>    <font color="red">if </font>(<a href="variable.html#68">OnHeap</a>)
+<br><a name="73"></a>        <a href="variable.html#70">NewValue</a> = <a style="color:green" href="heap.html#135">HeapAllocMem</a>(<a href="variable.html#11">pc</a>, <a href="variable.html#68">Size</a>);
+<br><a name="74"></a>    else
+<br><a name="75"></a>        <a href="variable.html#70">NewValue</a> = <a style="color:green" href="heap.html#67">HeapAllocStack</a>(<a href="variable.html#11">pc</a>, <a href="variable.html#68">Size</a>);
+<br><a name="76"></a>    
+<br><a name="77"></a>    <font color="red">if </font>(<a href="variable.html#70">NewValue</a> == NULL)
+<br><a name="78"></a>        <a style="color:green" href="platform.html#134">ProgramFail</a>(<a href="variable.html#68">Parser</a>, "out of memory");
+<br><a name="79"></a>    
+<br><a name="80"></a>#ifdef DEBUG_HEAP
+<br><a name="81"></a>    <font color="red">if </font>(!OnHeap)
+<br><a name="82"></a>        printf("pushing %d at 0x%lx\n", <a href="variable.html#68">Size</a>, (<font color="blue">unsigned </font>long)<a href="variable.html#70">NewValue</a>);
+<br><a name="83"></a>#endif
+<br><a name="84"></a>        
+<br><a name="85"></a>    <font color="red">return </font><a href="variable.html#70">NewValue</a>;
+<br><a name="86"></a>}
+<br><a name="87"></a>
+<br><a name="88"></a>/* allocate a value either on the heap or the stack using space dependent on what type we want */
+<br><a name="89"></a><font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *VariableAlloc<a href="interpreter_header.html#217">Value</a>AndData(<a href="interpreter_header.html#61">Picoc</a> *<a href="variable.html#11">pc</a>, <font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="variable.html#68">Parser</a>, <font color="blue">int </font>DataSize, <font color="blue">int </font>IsL<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *L<a href="interpreter_header.html#217">Value</a>From, <font color="blue">int </font><a href="variable.html#68">OnHeap</a>)
+<br><a name="90"></a>{
+<br><a name="91"></a>    <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *New<a href="interpreter_header.html#217">Value</a> = <a style="color:green" href="variable.html#68">VariableAlloc</a>(<a href="variable.html#11">pc</a>, <a href="variable.html#68">Parser</a>, MEM_ALIGN(sizeof(<font color="blue">struct </font><a href="interpreter_header.html#217">Value</a>)) + <a href="variable.html#89">DataSize</a>, <a href="variable.html#68">OnHeap</a>);
+<br><a name="92"></a>    <a href="variable.html#70">New<a href="interpreter_header.html#217">Value</a></a>->Val = (union <a href="interpreter_header.html#196">Any<a href="interpreter_header.html#217">Value</a></a> *)((<font color="blue">char </font>*)<a href="variable.html#70">New<a href="interpreter_header.html#217">Value</a></a> + MEM_ALIGN(sizeof(<font color="blue">struct </font><a href="interpreter_header.html#217">Value</a>)));
+<br><a name="93"></a>    <a href="variable.html#70">NewValue</a>->Val<a href="variable.html#68">OnHeap</a> = <a href="variable.html#68">OnHeap</a>;
+<br><a name="94"></a>    <a href="variable.html#70">NewValue</a>->AnyValOnHeap = FALSE;
+<br><a name="95"></a>    <a href="variable.html#70">NewValue</a>->ValOnStack = !OnHeap;
+<br><a name="96"></a>    <a href="variable.html#70">NewValue</a>-><a href="variable.html#89">IsLValue</a> = <a href="variable.html#89">IsLValue</a>;
+<br><a name="97"></a>    <a href="variable.html#70">NewValue</a>-><a href="variable.html#89">LValueFrom</a> = <a href="variable.html#89">LValueFrom</a>;
+<br><a name="98"></a>    <font color="red">if </font>(<a href="variable.html#68">Parser</a>) 
+<br><a name="99"></a>        <a href="variable.html#70">NewValue</a>->ScopeID = <a href="variable.html#68">Parser</a>->ScopeID;
+<br><a name="100"></a>
+<br><a name="101"></a>    <a href="variable.html#70">NewValue</a>->OutOfScope = 0;
+<br><a name="102"></a>    
+<br><a name="103"></a>    <font color="red">return </font><a href="variable.html#70">NewValue</a>;
+<br><a name="104"></a>}
+<br><a name="105"></a>
+<br><a name="106"></a>/* allocate a value given its type */
+<br><a name="107"></a><font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *VariableAlloc<a href="interpreter_header.html#217">Value</a>FromType(<a href="interpreter_header.html#61">Picoc</a> *<a href="variable.html#11">pc</a>, <font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="variable.html#68">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a>Type *Typ, <font color="blue">int </font>IsL<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *L<a href="interpreter_header.html#217">Value</a>From, <font color="blue">int </font><a href="variable.html#68">OnHeap</a>)
+<br><a name="108"></a>{
+<br><a name="109"></a>    <font color="blue">int </font><a href="variable.html#68">Size</a> = <a href="variable.html#107">Typ</a>e<a href="variable.html#68">Size</a>(<a href="variable.html#107">Typ</a>, <a href="variable.html#107">Typ</a>->Array<a href="variable.html#68">Size</a>, FALSE);
+<br><a name="110"></a>    <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *New<a href="interpreter_header.html#217">Value</a> = VariableAlloc<a href="interpreter_header.html#217">Value</a>AndData(<a href="variable.html#11">pc</a>, <a href="variable.html#68">Parser</a>, <a href="variable.html#68">Size</a>, IsL<a href="interpreter_header.html#217">Value</a>, L<a href="interpreter_header.html#217">Value</a>From, <a href="variable.html#68">OnHeap</a>);
+<br><a name="111"></a>    assert(<a href="variable.html#68">Size</a> >= 0 || <a href="variable.html#107">Typ</a> == &pc->Void<a href="variable.html#107">Typ</a>e);
+<br><a name="112"></a>    <a href="variable.html#70">NewValue</a>-><a href="variable.html#107">Typ</a> = <a href="variable.html#107">Typ</a>;
+<br><a name="113"></a>    
+<br><a name="114"></a>    <font color="red">return </font><a href="variable.html#70">NewValue</a>;
+<br><a name="115"></a>}
+<br><a name="116"></a>
+<br><a name="117"></a>/* allocate a value either on the heap or the stack and copy its value. handles overlapping data */
+<br><a name="118"></a><font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *VariableAlloc<a href="interpreter_header.html#217">Value</a>AndCopy(<a href="interpreter_header.html#61">Picoc</a> *<a href="variable.html#11">pc</a>, <font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="variable.html#68">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *From<a href="interpreter_header.html#217">Value</a>, <font color="blue">int </font><a href="variable.html#68">OnHeap</a>)
+<br><a name="119"></a>{
+<br><a name="120"></a>    <font color="blue">struct </font><a href="interpreter_header.html#160">ValueType</a> *DType = <a href="variable.html#118">FromValue</a>->Typ;
+<br><a name="121"></a>    <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *New<a href="interpreter_header.html#217">Value</a>;
+<br><a name="122"></a>    <font color="blue">char </font>TmpBuf<font color="red">[</font>MAX_TMP_COPY_BUF<font color="red">]</font>;
+<br><a name="123"></a>    <font color="blue">int </font>CopySize = <a style="color:green" href="type.html#69">TypeSizeValue</a>(<a href="variable.html#118">FromValue</a>, TRUE);
+<br><a name="124"></a>
+<br><a name="125"></a>    assert(<a href="variable.html#123">CopySize</a> <= MAX_TMP_COPY_BUF);
+<br><a name="126"></a>    memcpy((void *)&TmpBuf<font color="red">[</font>0<font color="red">]</font>, (void *)<a href="variable.html#118">FromValue</a>->Val, <a href="variable.html#123">CopySize</a>);
+<br><a name="127"></a>    <a href="variable.html#70">NewValue</a> = <a style="color:green" href="variable.html#89">VariableAllocValueAndData</a>(<a href="variable.html#11">pc</a>, <a href="variable.html#68">Parser</a>, <a href="variable.html#123">CopySize</a>, <a href="variable.html#118">FromValue</a>->IsLValue, <a href="variable.html#118">FromValue</a>->LValueFrom, <a href="variable.html#68">OnHeap</a>);
+<br><a name="128"></a>    <a href="variable.html#70">NewValue</a>->Typ = <a href="variable.html#120">DType</a>;
+<br><a name="129"></a>    memcpy((void *)<a href="variable.html#70">NewValue</a>->Val, (void *)&TmpBuf<font color="red">[</font>0<font color="red">]</font>, <a href="variable.html#123">CopySize</a>);
+<br><a name="130"></a>    
+<br><a name="131"></a>    <font color="red">return </font><a href="variable.html#70">NewValue</a>;
+<br><a name="132"></a>}
+<br><a name="133"></a>
+<br><a name="134"></a>/* allocate a value either on the heap or the stack from an existing <a href="interpreter_header.html#196">AnyValue</a> and type */
+<br><a name="135"></a><font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *VariableAlloc<a href="interpreter_header.html#217">Value</a>FromExistingData(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="variable.html#68">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a><a href="variable.html#107">Typ</a>e *<a href="variable.html#107">Typ</a>, union Any<a href="interpreter_header.html#217">Value</a> *From<a href="interpreter_header.html#217">Value</a>, <font color="blue">int </font>IsL<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *L<a href="interpreter_header.html#217">Value</a>From)
+<br><a name="136"></a>{
+<br><a name="137"></a>    <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *New<a href="interpreter_header.html#217">Value</a> = <a style="color:green" href="variable.html#68">VariableAlloc</a>(<a href="variable.html#68">Parser</a>->pc, <a href="variable.html#68">Parser</a>, sizeof(<font color="blue">struct </font><a href="interpreter_header.html#217">Value</a>), FALSE);
+<br><a name="138"></a>    <a href="variable.html#70">NewValue</a>-><a href="variable.html#107">Typ</a> = <a href="variable.html#107">Typ</a>;
+<br><a name="139"></a>    <a href="variable.html#70">NewValue</a>->Val = <a href="variable.html#118">FromValue</a>;
+<br><a name="140"></a>    <a href="variable.html#70">NewValue</a>->ValOnHeap = FALSE;
+<br><a name="141"></a>    <a href="variable.html#70">NewValue</a>->AnyValOnHeap = FALSE;
+<br><a name="142"></a>    <a href="variable.html#70">NewValue</a>->ValOnStack = FALSE;
+<br><a name="143"></a>    <a href="variable.html#70">NewValue</a>-><a href="variable.html#89">IsLValue</a> = <a href="variable.html#89">IsLValue</a>;
+<br><a name="144"></a>    <a href="variable.html#70">NewValue</a>-><a href="variable.html#89">LValueFrom</a> = <a href="variable.html#89">LValueFrom</a>;
+<br><a name="145"></a>    
+<br><a name="146"></a>    <font color="red">return </font><a href="variable.html#70">NewValue</a>;
+<br><a name="147"></a>}
+<br><a name="148"></a>
+<br><a name="149"></a>/* allocate a value either on the heap or the stack from an existing <a href="interpreter_header.html#217">Value</a>, sharing the value */
+<br><a name="150"></a><font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *VariableAlloc<a href="interpreter_header.html#217">Value</a>Shared(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="variable.html#68">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *From<a href="interpreter_header.html#217">Value</a>)
+<br><a name="151"></a>{
+<br><a name="152"></a>    <font color="red">return </font><a style="color:green" href="variable.html#135">VariableAllocValueFromExistingData</a>(<a href="variable.html#68">Parser</a>, <a href="variable.html#118">FromValue</a>->Typ, <a href="variable.html#118">FromValue</a>->Val, <a href="variable.html#118">FromValue</a>->IsLValue, <a href="variable.html#118">FromValue</a>->IsLValue ? <a href="variable.html#118">FromValue</a> : NULL);
+<br><a name="153"></a>}
+<br><a name="154"></a>
+<br><a name="155"></a>/* reallocate a variable so its data has a new size */
+<br><a name="156"></a>void VariableRealloc(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="variable.html#68">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *From<a href="interpreter_header.html#217">Value</a>, <font color="blue">int </font>NewSize)
+<br><a name="157"></a>{
+<br><a name="158"></a>    <font color="red">if </font>(<a href="variable.html#118">FromValue</a>->AnyValOnHeap)
+<br><a name="159"></a>        <a style="color:green" href="heap.html#226">HeapFreeMem</a>(<a href="variable.html#68">Parser</a>->pc, <a href="variable.html#118">FromValue</a>->Val);
+<br><a name="160"></a>        
+<br><a name="161"></a>    <a href="variable.html#118">FromValue</a>->Val = <a style="color:green" href="variable.html#68">VariableAlloc</a>(<a href="variable.html#68">Parser</a>->pc, <a href="variable.html#68">Parser</a>, <a href="variable.html#156">NewSize</a>, TRUE);
+<br><a name="162"></a>    <a href="variable.html#118">FromValue</a>->AnyValOnHeap = TRUE;
+<br><a name="163"></a>}
+<br><a name="164"></a>
+<br><a name="165"></a><font color="blue">int </font>VariableScopeBegin(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> * <a href="variable.html#68">Parser</a>, int* OldScopeID)
+<br><a name="166"></a>{
+<br><a name="167"></a>    <font color="blue">struct </font><a href="interpreter_header.html#231">Table<a href="variable.html#44">Entry</a></a> *<a href="variable.html#44">Entry</a>;
+<br><a name="168"></a>    <font color="blue">struct </font><a href="interpreter_header.html#231">TableEntry</a> *<a href="variable.html#45">NextEntry</a>;
+<br><a name="169"></a>    <a href="interpreter_header.html#61">Picoc</a> * <a href="variable.html#11">pc</a> = <a href="variable.html#68">Parser</a>-><a href="variable.html#11">pc</a>;
+<br><a name="170"></a>    <font color="blue">int </font><a href="variable.html#46">Count</a>;
+<br><a name="171"></a>    #ifdef VAR_SCOPE_DEBUG
+<br><a name="172"></a>    <font color="blue">int </font>FirstPr<font color="blue">int </font>= 0;
+<br><a name="173"></a>    #endif
+<br><a name="174"></a>    
+<br><a name="175"></a>    <font color="blue">struct </font><a href="interpreter_header.html#258">Table</a> * Hash<a href="interpreter_header.html#258">Table</a> = (<a href="variable.html#11">pc</a>->TopStackFrame == NULL) ? &(<a href="variable.html#11">pc</a>->Global<a href="interpreter_header.html#258">Table</a>) : &(<a href="variable.html#11">pc</a>->TopStackFrame)->Local<a href="interpreter_header.html#258">Table</a>;
+<br><a name="176"></a>
+<br><a name="177"></a>    <font color="red">if </font>(<a href="variable.html#68">Parser</a>->ScopeID == -1) <font color="red">return </font>-1;
+<br><a name="178"></a>
+<br><a name="179"></a>    /* XXX dumb hash, let's hope <font color="red">for </font>no collisions... */
+<br><a name="180"></a>    *<a href="variable.html#165">OldScopeID</a> = <a href="variable.html#68">Parser</a>->ScopeID;
+<br><a name="181"></a>    <a href="variable.html#68">Parser</a>->ScopeID = (int)(<a href="unistd_header.html#267">intptr_t</a>)(<a href="variable.html#68">Parser</a>->SourceText) * ((int)(<a href="unistd_header.html#267">intptr_t</a>)(<a href="variable.html#68">Parser</a>->Pos) / sizeof(char*));
+<br><a name="182"></a>    /* or maybe a more human-readable hash <font color="red">for </font>debugging? */
+<br><a name="183"></a>    /* <a href="variable.html#68">Parser</a>->ScopeID = <a href="variable.html#68">Parser</a>->Line * 0x10000 + <a href="variable.html#68">Parser</a>->CharacterPos; */
+<br><a name="184"></a>    
+<br><a name="185"></a>    <font color="red">for </font>(<a href="variable.html#46">Count</a> = 0; <a href="variable.html#46">Count</a> &lt; <a href="variable.html#42">HashTable</a>-&gt;Size; <a href="variable.html#46">Count</a>++)
+<br><a name="186"></a>    {
+<br><a name="187"></a>        <font color="red">for </font>(<a href="variable.html#44">Entry</a> = <a href="variable.html#42">HashTable</a>-><a href="variable.html#42">HashTable</a><font color="red">[</font>Count<font color="red">]</font>; <a href="variable.html#44">Entry</a> != NULL; <a href="variable.html#44">Entry</a> = Next<a href="variable.html#44">Entry</a>)
+<br><a name="188"></a>        {
+<br><a name="189"></a>            <a href="variable.html#45">Next<a href="variable.html#44">Entry</a></a> = <a href="variable.html#44">Entry</a>->Next;
+<br><a name="190"></a>            <font color="red">if </font>(<a href="variable.html#44">Entry</a>->p.v.Val->ScopeID == <a href="variable.html#68">Parser</a>->ScopeID && <a href="variable.html#44">Entry</a>->p.v.Val->OutOfScope)
+<br><a name="191"></a>            {
+<br><a name="192"></a>                <a href="variable.html#44">Entry</a>->p.v.Val->OutOfScope = FALSE;
+<br><a name="193"></a>                <a href="variable.html#44">Entry</a>->p.v.Key = (char*)((<a href="unistd_header.html#267">intptr_t</a>)<a href="variable.html#44">Entry</a>->p.v.Key & ~1);
+<br><a name="194"></a>                #ifdef VAR_SCOPE_DEBUG
+<br><a name="195"></a>                <font color="red">if </font>(!FirstPrint) { PRINT_SOURCE_POS; }
+<br><a name="196"></a>                FirstPr<font color="blue">int </font>= 1;
+<br><a name="197"></a>                printf(">>> back into scope: %s %x %d\n", <a href="variable.html#44">Entry</a>->p.v.Key, <a href="variable.html#44">Entry</a>->p.v.Val->ScopeID, <a href="variable.html#44">Entry</a>->p.v.Val->Val->Integer);
+<br><a name="198"></a>                #endif
+<br><a name="199"></a>            }
+<br><a name="200"></a>        }
+<br><a name="201"></a>    }
+<br><a name="202"></a>
+<br><a name="203"></a>    <font color="red">return </font><a href="variable.html#68">Parser</a>->ScopeID;
+<br><a name="204"></a>}
+<br><a name="205"></a>
+<br><a name="206"></a>void VariableScopeEnd(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> * <a href="variable.html#68">Parser</a>, <font color="blue">int </font><a href="variable.html#264">ScopeID</a>, <font color="blue">int </font>Prev<a href="variable.html#264">ScopeID</a>)
+<br><a name="207"></a>{
+<br><a name="208"></a>    <font color="blue">struct </font><a href="interpreter_header.html#231">Table<a href="variable.html#44">Entry</a></a> *<a href="variable.html#44">Entry</a>;
+<br><a name="209"></a>    <font color="blue">struct </font><a href="interpreter_header.html#231">TableEntry</a> *<a href="variable.html#45">NextEntry</a>;
+<br><a name="210"></a>    <a href="interpreter_header.html#61">Picoc</a> * <a href="variable.html#11">pc</a> = <a href="variable.html#68">Parser</a>-><a href="variable.html#11">pc</a>;
+<br><a name="211"></a>    <font color="blue">int </font><a href="variable.html#46">Count</a>;
+<br><a name="212"></a>    #ifdef VAR_SCOPE_DEBUG
+<br><a name="213"></a>    <font color="blue">int </font>FirstPr<font color="blue">int </font>= 0;
+<br><a name="214"></a>    #endif
+<br><a name="215"></a>
+<br><a name="216"></a>    <font color="blue">struct </font><a href="interpreter_header.html#258">Table</a> * Hash<a href="interpreter_header.html#258">Table</a> = (<a href="variable.html#11">pc</a>->TopStackFrame == NULL) ? &(<a href="variable.html#11">pc</a>->Global<a href="interpreter_header.html#258">Table</a>) : &(<a href="variable.html#11">pc</a>->TopStackFrame)->Local<a href="interpreter_header.html#258">Table</a>;
+<br><a name="217"></a>
+<br><a name="218"></a>    <font color="red">if </font>(<a href="variable.html#206">ScopeID</a> == -1) return;
+<br><a name="219"></a>
+<br><a name="220"></a>    <font color="red">for </font>(<a href="variable.html#46">Count</a> = 0; <a href="variable.html#46">Count</a> &lt; <a href="variable.html#42">HashTable</a>-&gt;Size; <a href="variable.html#46">Count</a>++)
+<br><a name="221"></a>    {
+<br><a name="222"></a>        <font color="red">for </font>(<a href="variable.html#44">Entry</a> = <a href="variable.html#42">HashTable</a>-><a href="variable.html#42">HashTable</a><font color="red">[</font>Count<font color="red">]</font>; <a href="variable.html#44">Entry</a> != NULL; <a href="variable.html#44">Entry</a> = Next<a href="variable.html#44">Entry</a>)
+<br><a name="223"></a>        {
+<br><a name="224"></a>            <a href="variable.html#45">Next<a href="variable.html#44">Entry</a></a> = <a href="variable.html#44">Entry</a>->Next;
+<br><a name="225"></a>            <font color="red">if </font>(<a href="variable.html#44">Entry</a>->p.v.Val-><a href="variable.html#206">ScopeID</a> == <a href="variable.html#206">ScopeID</a> && !<a href="variable.html#44">Entry</a>->p.v.Val->OutOfScope)
+<br><a name="226"></a>            {
+<br><a name="227"></a>                #ifdef VAR_SCOPE_DEBUG
+<br><a name="228"></a>                <font color="red">if </font>(!FirstPrint) { PRINT_SOURCE_POS; }
+<br><a name="229"></a>                FirstPr<font color="blue">int </font>= 1;
+<br><a name="230"></a>                printf(">>> out of scope: %s %x %d\n", <a href="variable.html#44">Entry</a>->p.v.Key, <a href="variable.html#44">Entry</a>->p.v.Val->ScopeID, <a href="variable.html#44">Entry</a>->p.v.Val->Val->Integer);
+<br><a name="231"></a>                #endif
+<br><a name="232"></a>                <a href="variable.html#44">Entry</a>->p.v.Val->OutOfScope = TRUE;
+<br><a name="233"></a>                <a href="variable.html#44">Entry</a>->p.v.Key = (char*)((<a href="unistd_header.html#267">intptr_t</a>)<a href="variable.html#44">Entry</a>->p.v.Key | 1); /* alter the key so it won't be found by normal searches */
+<br><a name="234"></a>            }
+<br><a name="235"></a>        }
+<br><a name="236"></a>    }
+<br><a name="237"></a>
+<br><a name="238"></a>    <a href="variable.html#68">Parser</a>->ScopeID = <a href="variable.html#206">PrevScopeID</a>;
+<br><a name="239"></a>}
+<br><a name="240"></a>
+<br><a name="241"></a><font color="blue">int </font>VariableDefinedAndOutOfScope(<a href="interpreter_header.html#61">Picoc</a> * <a href="variable.html#11">pc</a>, const char* Ident)
+<br><a name="242"></a>{
+<br><a name="243"></a>    <font color="blue">struct </font><a href="interpreter_header.html#231">Table<a href="variable.html#44">Entry</a></a> *<a href="variable.html#44">Entry</a>;
+<br><a name="244"></a>    <font color="blue">int </font><a href="variable.html#46">Count</a>;
+<br><a name="245"></a>
+<br><a name="246"></a>    <font color="blue">struct </font><a href="interpreter_header.html#258">Table</a> * Hash<a href="interpreter_header.html#258">Table</a> = (<a href="variable.html#11">pc</a>->TopStackFrame == NULL) ? &(<a href="variable.html#11">pc</a>->Global<a href="interpreter_header.html#258">Table</a>) : &(<a href="variable.html#11">pc</a>->TopStackFrame)->Local<a href="interpreter_header.html#258">Table</a>;
+<br><a name="247"></a>    <font color="red">for </font>(<a href="variable.html#46">Count</a> = 0; <a href="variable.html#46">Count</a> &lt; <a href="variable.html#42">HashTable</a>-&gt;Size; <a href="variable.html#46">Count</a>++)
+<br><a name="248"></a>    {
+<br><a name="249"></a>        <font color="red">for </font>(<a href="variable.html#44">Entry</a> = <a href="variable.html#42">HashTable</a>-><a href="variable.html#42">HashTable</a><font color="red">[</font>Count<font color="red">]</font>; <a href="variable.html#44">Entry</a> != NULL; <a href="variable.html#44">Entry</a> = <a href="variable.html#44">Entry</a>->Next)
+<br><a name="250"></a>        {
+<br><a name="251"></a>            <font color="red">if </font>(<a href="variable.html#44">Entry</a>->p.v.Val->OutOfScope && (char*)((<a href="unistd_header.html#267">intptr_t</a>)<a href="variable.html#44">Entry</a>->p.v.Key & ~1) == <a href="variable.html#241">Ident</a>)
+<br><a name="252"></a>                <font color="red">return </font>TRUE;
+<br><a name="253"></a>        }
+<br><a name="254"></a>    }
+<br><a name="255"></a>    <font color="red">return </font>FALSE;
+<br><a name="256"></a>}
+<br><a name="257"></a>
+<br><a name="258"></a>/* define a variable. <a href="variable.html#241">Ident</a> must be registered */
+<br><a name="259"></a><font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *VariableDefine(<a href="interpreter_header.html#61">Picoc</a> *<a href="variable.html#11">pc</a>, <font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="variable.html#68">Parser</a>, <font color="blue">char </font>*<a href="variable.html#241">Ident</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Init<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a><a href="variable.html#107">Typ</a>e *<a href="variable.html#107">Typ</a>, <font color="blue">int </font>MakeWritable)
+<br><a name="260"></a>{
+<br><a name="261"></a>    <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> * Assign<a href="interpreter_header.html#217">Value</a>;
+<br><a name="262"></a>    <font color="blue">struct </font><a href="interpreter_header.html#258">Table</a> * current<a href="interpreter_header.html#258">Table</a> = (<a href="variable.html#11">pc</a>->TopStackFrame == NULL) ? &(<a href="variable.html#11">pc</a>->Global<a href="interpreter_header.html#258">Table</a>) : &(<a href="variable.html#11">pc</a>->TopStackFrame)->Local<a href="interpreter_header.html#258">Table</a>;
+<br><a name="263"></a>    
+<br><a name="264"></a>    <font color="blue">int </font><a href="variable.html#206">ScopeID</a> = <a href="variable.html#68">Parser</a> ? <a href="variable.html#68">Parser</a>-><a href="variable.html#206">ScopeID</a> : -1;
+<br><a name="265"></a>#ifdef VAR_SCOPE_DEBUG
+<br><a name="266"></a>    <font color="red">if </font>(<a href="variable.html#68">Parser</a>) fprintf(<a href="stdio_header.html#170">stderr</a>, "def %s %x (%s:%d:%d)\n", <a href="variable.html#241">Ident</a>, <a href="variable.html#206">ScopeID</a>, <a href="variable.html#68">Parser</a>->FileName, <a href="variable.html#68">Parser</a>->Line, <a href="variable.html#68">Parser</a>->CharacterPos);
+<br><a name="267"></a>#endif
+<br><a name="268"></a>    
+<br><a name="269"></a>    <font color="red">if </font>(<a href="variable.html#259">InitValue</a> != NULL)
+<br><a name="270"></a>        <a href="variable.html#261">AssignValue</a> = <a style="color:green" href="variable.html#118">VariableAllocValueAndCopy</a>(<a href="variable.html#11">pc</a>, <a href="variable.html#68">Parser</a>, <a href="variable.html#259">InitValue</a>, <a href="variable.html#11">pc</a>->TopStackFrame == NULL);
+<br><a name="271"></a>    else
+<br><a name="272"></a>        <a href="variable.html#261">AssignValue</a> = <a style="color:green" href="variable.html#107">VariableAllocValueFrom<a href="variable.html#107">Typ</a>e</a>(<a href="variable.html#11">pc</a>, <a href="variable.html#68">Parser</a>, <a href="variable.html#107">Typ</a>, <a href="variable.html#259">MakeWritable</a>, NULL, <a href="variable.html#11">pc</a>->TopStackFrame == NULL);
+<br><a name="273"></a>    
+<br><a name="274"></a>    <a href="variable.html#261">AssignValue</a>->IsLValue = <a href="variable.html#259">MakeWritable</a>;
+<br><a name="275"></a>    <a href="variable.html#261">AssignValue</a>-><a href="variable.html#206">ScopeID</a> = <a href="variable.html#206">ScopeID</a>;
+<br><a name="276"></a>    <a href="variable.html#261">AssignValue</a>->OutOfScope = FALSE;
+<br><a name="277"></a>
+<br><a name="278"></a>    <font color="red">if </font>(!TableSet(<a href="variable.html#11">pc</a>, <a href="variable.html#262">currentTable</a>, <a href="variable.html#241">Ident</a>, <a href="variable.html#261">AssignValue</a>, <a href="variable.html#68">Parser</a> ? ((<font color="blue">char </font>*)<a href="variable.html#68">Parser</a>->FileName) : NULL, <a href="variable.html#68">Parser</a> ? <a href="variable.html#68">Parser</a>->Line : 0, <a href="variable.html#68">Parser</a> ? <a href="variable.html#68">Parser</a>->CharacterPos : 0))
+<br><a name="279"></a>        <a style="color:green" href="platform.html#134">ProgramFail</a>(<a href="variable.html#68">Parser</a>, "'%s' is already defined", <a href="variable.html#241">Ident</a>);
+<br><a name="280"></a>    
+<br><a name="281"></a>    <font color="red">return </font><a href="variable.html#261">AssignValue</a>;
+<br><a name="282"></a>}
+<br><a name="283"></a>
+<br><a name="284"></a>/* define a variable. <a href="variable.html#241">Ident</a> must be registered. If it's a redefinition from the same declaration don't throw an error */
+<br><a name="285"></a><font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *VariableDefineButIgnore<a href="variable.html#241">Ident</a>ical(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="variable.html#68">Parser</a>, <font color="blue">char </font>*<a href="variable.html#241">Ident</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a><a href="variable.html#107">Typ</a>e *<a href="variable.html#107">Typ</a>, <font color="blue">int </font>IsStatic, <font color="blue">int </font>*FirstVisit)
+<br><a name="286"></a>{
+<br><a name="287"></a>    <a href="interpreter_header.html#61">Picoc</a> *<a href="variable.html#11">pc</a> = <a href="variable.html#68">Parser</a>-><a href="variable.html#11">pc</a>;
+<br><a name="288"></a>    <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Existing<a href="interpreter_header.html#217">Value</a>;
+<br><a name="289"></a>    const <font color="blue">char </font>*DeclFileName;
+<br><a name="290"></a>    <font color="blue">int </font>DeclLine;
+<br><a name="291"></a>    <font color="blue">int </font>DeclColumn;
+<br><a name="292"></a>    
+<br><a name="293"></a>    /* is the type a forward declaration? */
+<br><a name="294"></a>    <font color="red">if </font>(<a style="color:green" href="type.html#535"><a href="variable.html#107">Typ</a>eIsForwardDeclared</a>(<a href="variable.html#68">Parser</a>, <a href="variable.html#107">Typ</a>))
+<br><a name="295"></a>        <a style="color:green" href="platform.html#134">ProgramFail</a>(<a href="variable.html#68">Parser</a>, "type '%t' isn't defined", <a href="variable.html#107">Typ</a>);
+<br><a name="296"></a>
+<br><a name="297"></a>    <font color="red">if </font>(<a href="variable.html#285">IsStatic</a>)
+<br><a name="298"></a>    {
+<br><a name="299"></a>        <font color="blue">char </font>MangledName<font color="red">[</font>LINEBUFFER_MAX<font color="red">]</font>;
+<br><a name="300"></a>        <font color="blue">char </font>*MNPos = &MangledName<font color="red">[</font>0<font color="red">]</font>;
+<br><a name="301"></a>        <font color="blue">char </font>*MNEnd = &MangledName<font color="red">[</font>LINEBUFFER_MAX-1<font color="red">]</font>;
+<br><a name="302"></a>        const <font color="blue">char </font>*RegisteredMangledName;
+<br><a name="303"></a>        
+<br><a name="304"></a>        /* make the mangled static name (avoiding using sprintf() to minimise library impact) */
+<br><a name="305"></a>        memset((void *)&<a href="variable.html#299">MangledName</a>, '\0', sizeof(<a href="variable.html#299">MangledName</a>));
+<br><a name="306"></a>        *<a href="variable.html#300">MNPos</a>++ = '/';
+<br><a name="307"></a>        strncpy(<a href="variable.html#300">MNPos</a>, (<font color="blue">char </font>*)<a href="variable.html#68">Parser</a>->FileName, <a href="variable.html#301">MNEnd</a> - <a href="variable.html#300">MNPos</a>);
+<br><a name="308"></a>        <a href="variable.html#300">MNPos</a> += strlen(<a href="variable.html#300">MNPos</a>);
+<br><a name="309"></a>        
+<br><a name="310"></a>        <font color="red">if </font>(<a href="variable.html#11">pc</a>->TopStackFrame != NULL)
+<br><a name="311"></a>        {
+<br><a name="312"></a>            /* we're inside a function */
+<br><a name="313"></a>            <font color="red">if </font>(<a href="variable.html#301">MNEnd</a> - <a href="variable.html#300">MNPos</a> > 0) *<a href="variable.html#300">MNPos</a>++ = '/';
+<br><a name="314"></a>            strncpy(<a href="variable.html#300">MNPos</a>, (<font color="blue">char </font>*)<a href="variable.html#11">pc</a>->TopStackFrame->FuncName, <a href="variable.html#301">MNEnd</a> - <a href="variable.html#300">MNPos</a>);
+<br><a name="315"></a>            <a href="variable.html#300">MNPos</a> += strlen(<a href="variable.html#300">MNPos</a>);
+<br><a name="316"></a>        }
+<br><a name="317"></a>            
+<br><a name="318"></a>        <font color="red">if </font>(<a href="variable.html#301">MNEnd</a> - <a href="variable.html#300">MNPos</a> > 0) *<a href="variable.html#300">MNPos</a>++ = '/';
+<br><a name="319"></a>        strncpy(<a href="variable.html#300">MNPos</a>, <a href="variable.html#241">Ident</a>, <a href="variable.html#301">MNEnd</a> - <a href="variable.html#300">MNPos</a>);
+<br><a name="320"></a>        <a href="variable.html#302">Registered<a href="variable.html#299">MangledName</a></a> = <a style="color:green" href="table.html#166">TableStrRegister</a>(<a href="variable.html#11">pc</a>, <a href="variable.html#299">MangledName</a>);
+<br><a name="321"></a>        
+<br><a name="322"></a>        /* is this static already defined? */
+<br><a name="323"></a>        <font color="red">if </font>(!TableGet(&pc->GlobalTable, <a href="variable.html#302">RegisteredMangledName</a>, &ExistingValue, &DeclFileName, &DeclLine, &DeclColumn))
+<br><a name="324"></a>        {
+<br><a name="325"></a>            /* define the mangled-named static variable store in the global scope */
+<br><a name="326"></a>            <a href="variable.html#288">ExistingValue</a> = <a style="color:green" href="variable.html#107">VariableAllocValueFrom<a href="variable.html#107">Typ</a>e</a>(<a href="variable.html#68">Parser</a>->pc, <a href="variable.html#68">Parser</a>, <a href="variable.html#107">Typ</a>, TRUE, NULL, TRUE);
+<br><a name="327"></a>            <a style="color:green" href="table.html#58">TableSet</a>(<a href="variable.html#11">pc</a>, &<a href="variable.html#11">pc</a>->GlobalTable, (<font color="blue">char </font>*)<a href="variable.html#302">RegisteredMangledName</a>, <a href="variable.html#288">ExistingValue</a>, (<font color="blue">char </font>*)<a href="variable.html#68">Parser</a>->FileName, <a href="variable.html#68">Parser</a>->Line, <a href="variable.html#68">Parser</a>->CharacterPos);
+<br><a name="328"></a>            *<a href="variable.html#285">FirstVisit</a> = TRUE;
+<br><a name="329"></a>        }
+<br><a name="330"></a>
+<br><a name="331"></a>        /* static variable exists in the global scope - now make a mirroring variable in our own scope with the <font color="blue">short </font>name */
+<br><a name="332"></a>        <a style="color:green" href="variable.html#375">VariableDefinePlatformVar</a>(<a href="variable.html#68">Parser</a>->pc, <a href="variable.html#68">Parser</a>, <a href="variable.html#241">Ident</a>, <a href="variable.html#288">ExistingValue</a>->Typ, <a href="variable.html#288">ExistingValue</a>->Val, TRUE);
+<br><a name="333"></a>        <font color="red">return </font><a href="variable.html#288">ExistingValue</a>;
+<br><a name="334"></a>    }
+<br><a name="335"></a>    else
+<br><a name="336"></a>    {
+<br><a name="337"></a>        <font color="red">if </font>(<a href="variable.html#68">Parser</a>->Line != 0 && <a style="color:green" href="table.html#81">TableGet</a>((<a href="variable.html#11">pc</a>->TopStackFrame == NULL) ? &<a href="variable.html#11">pc</a>->GlobalTable : &<a href="variable.html#11">pc</a>->TopStackFrame->LocalTable, <a href="variable.html#241">Ident</a>, &ExistingValue, &DeclFileName, &DeclLine, &DeclColumn)
+<br><a name="338"></a>                && <a href="variable.html#289">DeclFileName</a> == <a href="variable.html#68">Parser</a>->FileName && <a href="variable.html#290">DeclLine</a> == <a href="variable.html#68">Parser</a>->Line && <a href="variable.html#291">DeclColumn</a> == <a href="variable.html#68">Parser</a>->CharacterPos)
+<br><a name="339"></a>            <font color="red">return </font><a href="variable.html#288">ExistingValue</a>;
+<br><a name="340"></a>        else
+<br><a name="341"></a>            <font color="red">return </font><a style="color:green" href="variable.html#259">VariableDefine</a>(<a href="variable.html#68">Parser</a>->pc, <a href="variable.html#68">Parser</a>, <a href="variable.html#241">Ident</a>, NULL, <a href="variable.html#107">Typ</a>, TRUE);
+<br><a name="342"></a>    }
+<br><a name="343"></a>}
+<br><a name="344"></a>
+<br><a name="345"></a>/* check <font color="red">if </font>a variable with a given name is defined. <a href="variable.html#241">Ident</a> must be registered */
+<br><a name="346"></a><font color="blue">int </font>VariableDefined(<a href="interpreter_header.html#61">Picoc</a> *<a href="variable.html#11">pc</a>, const <font color="blue">char </font>*<a href="variable.html#241">Ident</a>)
+<br><a name="347"></a>{
+<br><a name="348"></a>    <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Found<a href="interpreter_header.html#217">Value</a>;
+<br><a name="349"></a>    
+<br><a name="350"></a>    <font color="red">if </font>(<a href="variable.html#11">pc</a>->TopStackFrame == NULL || !TableGet(&<a href="variable.html#11">pc</a>->TopStackFrame->LocalTable, <a href="variable.html#241">Ident</a>, &FoundValue, NULL, NULL, NULL))
+<br><a name="351"></a>    {
+<br><a name="352"></a>        <font color="red">if </font>(!TableGet(&pc->GlobalTable, <a href="variable.html#241">Ident</a>, &FoundValue, NULL, NULL, NULL))
+<br><a name="353"></a>            <font color="red">return </font>FALSE;
+<br><a name="354"></a>    }
+<br><a name="355"></a>
+<br><a name="356"></a>    <font color="red">return </font>TRUE;
+<br><a name="357"></a>}
+<br><a name="358"></a>
+<br><a name="359"></a>/* get the value of a variable. must be defined. <a href="variable.html#241">Ident</a> must be registered */
+<br><a name="360"></a>void VariableGet(<a href="interpreter_header.html#61">Picoc</a> *<a href="variable.html#11">pc</a>, <font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="variable.html#68">Parser</a>, const <font color="blue">char </font>*<a href="variable.html#241">Ident</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **<a href="variable.html#443">LVal</a>)
+<br><a name="361"></a>{
+<br><a name="362"></a>    <font color="red">if </font>(<a href="variable.html#11">pc</a>->TopStackFrame == NULL || !TableGet(&<a href="variable.html#11">pc</a>->TopStackFrame->LocalTable, <a href="variable.html#241">Ident</a>, <a href="variable.html#360">LVal</a>, NULL, NULL, NULL))
+<br><a name="363"></a>    {
+<br><a name="364"></a>        <font color="red">if </font>(!TableGet(&pc->GlobalTable, <a href="variable.html#241">Ident</a>, <a href="variable.html#360">LVal</a>, NULL, NULL, NULL))
+<br><a name="365"></a>        {
+<br><a name="366"></a>            <font color="red">if </font>(<a style="color:green" href="variable.html#241">VariableDefinedAndOutOfScope</a>(<a href="variable.html#11">pc</a>, <a href="variable.html#241">Ident</a>))
+<br><a name="367"></a>                <a style="color:green" href="platform.html#134">ProgramFail</a>(<a href="variable.html#68">Parser</a>, "'%s' is out of scope", <a href="variable.html#241">Ident</a>);
+<br><a name="368"></a>            else
+<br><a name="369"></a>                <a style="color:green" href="platform.html#134">ProgramFail</a>(<a href="variable.html#68">Parser</a>, "'%s' is undefined", <a href="variable.html#241">Ident</a>);
+<br><a name="370"></a>        }
+<br><a name="371"></a>    }
+<br><a name="372"></a>}
+<br><a name="373"></a>
+<br><a name="374"></a>/* define a global variable shared with a platform global. <a href="variable.html#241">Ident</a> will be registered */
+<br><a name="375"></a>void VariableDefinePlatformVar(<a href="interpreter_header.html#61">Picoc</a> *<a href="variable.html#11">pc</a>, <font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="variable.html#68">Parser</a>, <font color="blue">char </font>*<a href="variable.html#241">Ident</a>, <font color="blue">struct </font><a href="interpreter_header.html#160">Value<a href="variable.html#107">Typ</a>e</a> *<a href="variable.html#107">Typ</a>, union <a href="interpreter_header.html#196">AnyValue</a> *<a href="variable.html#118">FromValue</a>, <font color="blue">int </font>IsWritable)
+<br><a name="376"></a>{
+<br><a name="377"></a>    <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Some<a href="interpreter_header.html#217">Value</a> = VariableAlloc<a href="interpreter_header.html#217">Value</a>AndData(<a href="variable.html#11">pc</a>, NULL, 0, <a href="variable.html#375">IsWritable</a>, NULL, TRUE);
+<br><a name="378"></a>    <a href="variable.html#377">SomeValue</a>-><a href="variable.html#107">Typ</a> = <a href="variable.html#107">Typ</a>;
+<br><a name="379"></a>    <a href="variable.html#377">SomeValue</a>->Val = <a href="variable.html#118">FromValue</a>;
+<br><a name="380"></a>    
+<br><a name="381"></a>    <font color="red">if </font>(!TableSet(<a href="variable.html#11">pc</a>, (<a href="variable.html#11">pc</a>->TopStackFrame == NULL) ? &<a href="variable.html#11">pc</a>->GlobalTable : &<a href="variable.html#11">pc</a>->TopStackFrame->LocalTable, <a style="color:green" href="table.html#166">TableStrRegister</a>(<a href="variable.html#11">pc</a>, <a href="variable.html#241">Ident</a>), <a href="variable.html#377">SomeValue</a>, <a href="variable.html#68">Parser</a> ? <a href="variable.html#68">Parser</a>->FileName : NULL, <a href="variable.html#68">Parser</a> ? <a href="variable.html#68">Parser</a>->Line : 0, <a href="variable.html#68">Parser</a> ? <a href="variable.html#68">Parser</a>->CharacterPos : 0))
+<br><a name="382"></a>        <a style="color:green" href="platform.html#134">ProgramFail</a>(<a href="variable.html#68">Parser</a>, "'%s' is already defined", <a href="variable.html#241">Ident</a>);
+<br><a name="383"></a>}
+<br><a name="384"></a>
+<br><a name="385"></a>/* free and/or pop the top value off the stack. Var must be the top value on the stack! */
+<br><a name="386"></a>void VariableStackPop(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="variable.html#68">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Var)
+<br><a name="387"></a>{
+<br><a name="388"></a>    <font color="blue">int </font>Success;
+<br><a name="389"></a>    
+<br><a name="390"></a>#ifdef DEBUG_HEAP
+<br><a name="391"></a>    <font color="red">if </font>(<a href="variable.html#386">Var</a>->ValOnStack)
+<br><a name="392"></a>        printf("popping %ld at 0x%lx\n", (<font color="blue">unsigned </font>long)(sizeof(<font color="blue">struct </font><a href="interpreter_header.html#217">Value</a>) + TypeSize<a href="interpreter_header.html#217">Value</a>(<a href="variable.html#386">Var</a>, FALSE)), (<font color="blue">unsigned </font>long)<a href="variable.html#386">Var</a>);
+<br><a name="393"></a>#endif
+<br><a name="394"></a>        
+<br><a name="395"></a>    <font color="red">if </font>(<a href="variable.html#386">Var</a>->ValOnHeap)
+<br><a name="396"></a>    { 
+<br><a name="397"></a>        <font color="red">if </font>(<a href="variable.html#386">Var</a>->Val != NULL)
+<br><a name="398"></a>            <a style="color:green" href="heap.html#226">HeapFreeMem</a>(<a href="variable.html#68">Parser</a>->pc, <a href="variable.html#386">Var</a>->Val);
+<br><a name="399"></a>            
+<br><a name="400"></a>        <a href="variable.html#388">Success</a> = <a style="color:green" href="heap.html#92">HeapPopStack</a>(<a href="variable.html#68">Parser</a>->pc, <a href="variable.html#386">Var</a>, sizeof(<font color="blue">struct </font><a href="interpreter_header.html#217">Value</a>));                       /* free from heap */
+<br><a name="401"></a>    }
+<br><a name="402"></a>    else <font color="red">if </font>(<a href="variable.html#386">Var</a>->ValOnStack)
+<br><a name="403"></a>        <a href="variable.html#388">Success</a> = <a style="color:green" href="heap.html#92">HeapPopStack</a>(<a href="variable.html#68">Parser</a>->pc, <a href="variable.html#386">Var</a>, sizeof(<font color="blue">struct </font><a href="interpreter_header.html#217">Value</a>) + TypeSize<a href="interpreter_header.html#217">Value</a>(<a href="variable.html#386">Var</a>, FALSE));  /* free from stack */
+<br><a name="404"></a>    else
+<br><a name="405"></a>        <a href="variable.html#388">Success</a> = <a style="color:green" href="heap.html#92">HeapPopStack</a>(<a href="variable.html#68">Parser</a>->pc, <a href="variable.html#386">Var</a>, sizeof(<font color="blue">struct </font><a href="interpreter_header.html#217">Value</a>));                       /* value isn't our problem */
+<br><a name="406"></a>        
+<br><a name="407"></a>    <font color="red">if </font>(!Success)
+<br><a name="408"></a>        <a style="color:green" href="platform.html#134">ProgramFail</a>(<a href="variable.html#68">Parser</a>, "stack underrun");
+<br><a name="409"></a>}
+<br><a name="410"></a>
+<br><a name="411"></a>/* add a stack frame when doing a function call */
+<br><a name="412"></a>void VariableStackFrameAdd(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="variable.html#68">Parser</a>, const <font color="blue">char </font>*FuncName, <font color="blue">int </font>NumParams)
+<br><a name="413"></a>{
+<br><a name="414"></a>    <font color="blue">struct </font><a href="interpreter_header.html#266">StackFrame</a> *NewFrame;
+<br><a name="415"></a>    
+<br><a name="416"></a>    <a style="color:green" href="heap.html#108">HeapPushStackFrame</a>(<a href="variable.html#68">Parser</a>->pc);
+<br><a name="417"></a>    <a href="variable.html#414">NewFrame</a> = <a style="color:green" href="heap.html#67">HeapAllocStack</a>(<a href="variable.html#68">Parser</a>->pc, sizeof(<font color="blue">struct </font><a href="interpreter_header.html#266">StackFrame</a>) + sizeof(<font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *) * <a href="variable.html#412">NumParams</a>);
+<br><a name="418"></a>    <font color="red">if </font>(<a href="variable.html#414">NewFrame</a> == NULL)
+<br><a name="419"></a>        <a style="color:green" href="platform.html#134">ProgramFail</a>(<a href="variable.html#68">Parser</a>, "out of memory");
+<br><a name="420"></a>        
+<br><a name="421"></a>    <a style="color:green" href="parse.html#429"><a href="variable.html#68">Parser</a>Copy</a>(&NewFrame->Return<a href="variable.html#68">Parser</a>, <a href="variable.html#68">Parser</a>);
+<br><a name="422"></a>    <a href="variable.html#414">NewFrame</a>-><a href="variable.html#412">FuncName</a> = <a href="variable.html#412">FuncName</a>;
+<br><a name="423"></a>    <a href="variable.html#414">NewFrame</a>->Parameter = (<a href="variable.html#412">NumParams</a> > 0) ? ((void *)((<font color="blue">char </font>*)<a href="variable.html#414">NewFrame</a> + sizeof(<font color="blue">struct </font><a href="interpreter_header.html#266">StackFrame</a>))) : NULL;
+<br><a name="424"></a>    <a style="color:green" href="table.html#32">TableInitTable</a>(&NewFrame->LocalTable, &NewFrame->LocalHashTable<font color="red">[</font>0<font color="red">]</font>, LOCAL_TABLE_SIZE, FALSE);
+<br><a name="425"></a>    <a href="variable.html#414">NewFrame</a>->PreviousStackFrame = <a href="variable.html#68">Parser</a>->pc->TopStackFrame;
+<br><a name="426"></a>    <a href="variable.html#68">Parser</a>->pc->TopStackFrame = <a href="variable.html#414">NewFrame</a>;
+<br><a name="427"></a>}
+<br><a name="428"></a>
+<br><a name="429"></a>/* remove a stack frame */
+<br><a name="430"></a>void VariableStackFramePop(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="variable.html#68">Parser</a>)
+<br><a name="431"></a>{
+<br><a name="432"></a>    <font color="red">if </font>(<a href="variable.html#68">Parser</a>->pc->TopStackFrame == NULL)
+<br><a name="433"></a>        <a style="color:green" href="platform.html#134">ProgramFail</a>(<a href="variable.html#68">Parser</a>, "stack is empty - can't go back");
+<br><a name="434"></a>        
+<br><a name="435"></a>    <a style="color:green" href="parse.html#429"><a href="variable.html#68">Parser</a>Copy</a>(<a href="variable.html#68">Parser</a>, &<a href="variable.html#68">Parser</a>->pc->TopStackFrame->Return<a href="variable.html#68">Parser</a>);
+<br><a name="436"></a>    <a href="variable.html#68">Parser</a>->pc->TopStackFrame = <a href="variable.html#68">Parser</a>->pc->TopStackFrame->PreviousStackFrame;
+<br><a name="437"></a>    <a style="color:green" href="heap.html#119">HeapPopStackFrame</a>(<a href="variable.html#68">Parser</a>->pc);
+<br><a name="438"></a>}
+<br><a name="439"></a>
+<br><a name="440"></a>/* get a string literal. assumes that <a href="variable.html#241">Ident</a> is already registered. NULL <font color="red">if </font>not found */
+<br><a name="441"></a><font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *VariableStringLiteralGet(<a href="interpreter_header.html#61">Picoc</a> *<a href="variable.html#11">pc</a>, <font color="blue">char </font>*<a href="variable.html#241">Ident</a>)
+<br><a name="442"></a>{
+<br><a name="443"></a>    <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *<a href="variable.html#360">LVal</a> = NULL;
+<br><a name="444"></a>
+<br><a name="445"></a>    <font color="red">if </font>(<a style="color:green" href="table.html#81">TableGet</a>(&pc->StringLiteralTable, <a href="variable.html#241">Ident</a>, &LVal, NULL, NULL, NULL))
+<br><a name="446"></a>        <font color="red">return </font><a href="variable.html#360">LVal</a>;
+<br><a name="447"></a>    else
+<br><a name="448"></a>        <font color="red">return </font>NULL;
+<br><a name="449"></a>}
+<br><a name="450"></a>
+<br><a name="451"></a>/* define a string literal. assumes that <a href="variable.html#241">Ident</a> is already registered */
+<br><a name="452"></a>void VariableStringLiteralDefine(<a href="interpreter_header.html#61">Picoc</a> *<a href="variable.html#11">pc</a>, <font color="blue">char </font>*<a href="variable.html#241">Ident</a>, <font color="blue">struct </font><a href="interpreter_header.html#217"><a href="variable.html#19">Val</a>ue</a> *<a href="variable.html#19">Val</a>)
+<br><a name="453"></a>{
+<br><a name="454"></a>    <a style="color:green" href="table.html#58">TableSet</a>(<a href="variable.html#11">pc</a>, &<a href="variable.html#11">pc</a>->StringLiteralTable, <a href="variable.html#241">Ident</a>, <a href="variable.html#19">Val</a>, NULL, 0, 0);
+<br><a name="455"></a>}
+<br><a name="456"></a>
+<br><a name="457"></a>/* check a pointer <font color="red">for </font>validity and dereference it <font color="red">for </font>use */
+<br><a name="458"></a>void *VariableDereferencePointer(<font color="blue">struct </font><a href="interpreter_header.html#116">ParseState</a> *<a href="variable.html#68">Parser</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> *Pointer<a href="interpreter_header.html#217">Value</a>, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a> **DerefVal, <font color="blue">int </font>*DerefOffset, <font color="blue">struct </font><a href="interpreter_header.html#217">Value</a>Type **DerefType, <font color="blue">int </font>*DerefIsL<a href="interpreter_header.html#217">Value</a>)
+<br><a name="459"></a>{
+<br><a name="460"></a>    <font color="red">if </font>(<a href="variable.html#458">DerefVal</a> != NULL)
+<br><a name="461"></a>        *<a href="variable.html#458">DerefVal</a> = NULL;
+<br><a name="462"></a>        
+<br><a name="463"></a>    <font color="red">if </font>(<a href="variable.html#458">DerefType</a> != NULL)
+<br><a name="464"></a>        *<a href="variable.html#458">DerefType</a> = <a href="variable.html#458">PointerValue</a>->Typ->FromType;
+<br><a name="465"></a>        
+<br><a name="466"></a>    <font color="red">if </font>(<a href="variable.html#458">DerefOffset</a> != NULL)
+<br><a name="467"></a>        *<a href="variable.html#458">DerefOffset</a> = 0;
+<br><a name="468"></a>        
+<br><a name="469"></a>    <font color="red">if </font>(<a href="variable.html#458">DerefIsLValue</a> != NULL)
+<br><a name="470"></a>        *<a href="variable.html#458">DerefIsLValue</a> = TRUE;
+<br><a name="471"></a>
+<br><a name="472"></a>    <font color="red">return </font><a href="variable.html#458">PointerValue</a>->Val->Pointer;
+<br><a name="473"></a>}
+<br><a name="474"></a>
+<br><a name="475"></a></html>
